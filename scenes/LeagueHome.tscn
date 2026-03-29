@@ -26,6 +26,7 @@ size_flags_vertical = 3
 
 [node name="RootVBox" type="VBoxContainer" parent="RootScroll/MarginContainer" unique_id=1385467560]
 layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="TitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1807036526]
 layout_mode = 2
@@ -46,27 +47,59 @@ size_flags_vertical = 3
 
 [node name="TeamListVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/TeamListScroll" unique_id=1277563580]
 layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="SelectedTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=654936110]
 layout_mode = 2
 text = "選択球団詳細"
 
 [node name="SelectedTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=261534439]
+custom_minimum_size = Vector2(0, 88)
 layout_mode = 2
+size_flags_horizontal = 3
 text = "まだ球団が選択されていません"
+autowrap_mode = 3
 
-[node name="LineupTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=656719716]
+[node name="LineupVsRTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
-text = "スタメン"
+text = "対右投手スタメン"
 
-[node name="LineupDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1740263214]
+[node name="LineupVsRDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
-text = "球団を選択するとスタメンが表示されます"
+size_flags_horizontal = 3
+text = "球団を選択すると対右打線が表示されます"
+autowrap_mode = 3
+
+[node name="LineupVsLTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+text = "対左投手スタメン"
+
+[node name="LineupVsLDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 160)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "球団を選択すると対左打線が表示されます"
+autowrap_mode = 3
 
 [node name="RotationTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1336810749]
 layout_mode = 2
 text = "先発ローテ"
 
 [node name="RotationDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1119853119]
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
+size_flags_horizontal = 3
 text = "球団を選択すると先発ローテが表示されます"
+autowrap_mode = 3
+
+[node name="GameLogTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1392284753]
+layout_mode = 2
+text = "直近の試合結果"
+
+[node name="GameLogDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1709875163]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "まだ試合は行われていません"
+autowrap_mode = 3

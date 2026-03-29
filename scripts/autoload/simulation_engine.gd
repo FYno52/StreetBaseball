@@ -18,8 +18,11 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 	var away_starter = LeagueState.get_starting_pitcher_for_day(str(away_team.id), int(game.day))
 	var home_starter = LeagueState.get_starting_pitcher_for_day(str(home_team.id), int(game.day))
 
-	var away_attack: float = _calc_team_attack_value(away_team)
-	var home_attack: float = _calc_team_attack_value(home_team)
+	var away_lineup_ids: Array[String] = _get_lineup_ids_for_matchup(away_team, home_starter)
+	var home_lineup_ids: Array[String] = _get_lineup_ids_for_matchup(home_team, away_starter)
+
+	var away_attack: float = _calc_team_attack_value(away_team, away_lineup_ids, home_starter)
+	var home_attack: float = _calc_team_attack_value(home_team, home_lineup_ids, away_starter)
 
 	var away_pitch_def: float = _calc_pitcher_defense_value(away_starter)
 	var home_pitch_def: float = _calc_pitcher_defense_value(home_starter)
@@ -28,30 +31,32 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 	var home_score: int = _calc_score_from_matchup(home_attack, away_pitch_def)
 
 	var log_lines: Array[String] = []
-	log_lines.append("試合開始")
+	log_lines.append("Game Start")
 	log_lines.append("%s vs %s" % [away_team.name, home_team.name])
 
 	if away_starter != null:
-		log_lines.append("away starter: %s" % away_starter.full_name)
+		log_lines.append("away starter: %s (%s)" % [away_starter.full_name, away_starter.throws])
 	else:
 		log_lines.append("away starter: none")
 
 	if home_starter != null:
-		log_lines.append("home starter: %s" % home_starter.full_name)
+		log_lines.append("home starter: %s (%s)" % [home_starter.full_name, home_starter.throws])
 	else:
 		log_lines.append("home starter: none")
 
+	log_lines.append("away lineup vs %s" % _get_pitcher_hand_label(home_starter))
+	log_lines.append("home lineup vs %s" % _get_pitcher_hand_label(away_starter))
 	log_lines.append("away_attack=%.2f / home_pitch_def=%.2f" % [away_attack, home_pitch_def])
 	log_lines.append("home_attack=%.2f / away_pitch_def=%.2f" % [home_attack, away_pitch_def])
-	log_lines.append("9回終了")
+	log_lines.append("End of 9th")
 	log_lines.append("%s %d - %d %s" % [away_team.name, away_score, home_score, home_team.name])
 
 	if away_score > home_score:
-		log_lines.append("%s の勝利" % away_team.name)
+		log_lines.append("%s win" % away_team.name)
 	elif home_score > away_score:
-		log_lines.append("%s の勝利" % home_team.name)
+		log_lines.append("%s win" % home_team.name)
 	else:
-		log_lines.append("引き分け")
+		log_lines.append("Draw")
 
 	game.played = true
 	game.away_score = away_score
@@ -61,7 +66,7 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 		game.log_lines.append(line)
 
 	_apply_team_result(away_team, home_team, away_score, home_score)
-	_apply_minimal_player_stats(away_team, home_team, away_starter, home_starter, away_score, home_score)
+	_apply_minimal_player_stats(away_team, home_team, away_starter, home_starter, away_score, home_score, away_lineup_ids, home_lineup_ids)
 
 	return {
 		"away_team_id": away_team.id,
@@ -71,11 +76,27 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 		"log_lines": log_lines,
 	}
 
-func _calc_team_attack_value(team) -> float:
+func _get_lineup_ids_for_matchup(team, opposing_pitcher) -> Array[String]:
+	if team == null:
+		return []
+
+	if opposing_pitcher != null and str(opposing_pitcher.throws) == "L" and not team.lineup_vs_l.is_empty():
+		return team.lineup_vs_l
+
+	if not team.lineup_vs_r.is_empty():
+		return team.lineup_vs_r
+
+	return team.lineup_vs_l
+
+func _calc_team_attack_value(team, lineup_ids: Array[String] = [], opposing_pitcher = null) -> float:
 	var total: float = 0.0
 	var count: int = 0
+	var resolved_lineup_ids: Array[String] = lineup_ids
 
-	for player_id in team.lineup_vs_r:
+	if resolved_lineup_ids.is_empty():
+		resolved_lineup_ids = _get_lineup_ids_for_matchup(team, opposing_pitcher)
+
+	for player_id in resolved_lineup_ids:
 		var p = LeagueState.get_player(str(player_id))
 		if p == null:
 			continue
@@ -84,8 +105,9 @@ func _calc_team_attack_value(team) -> float:
 		var power_rating: float = float(p.ratings["power"])
 		var eye: float = float(p.ratings["eye"])
 		var speed: float = float(p.ratings["speed"])
+		var handedness_bonus: float = _calc_handedness_bonus(p, opposing_pitcher)
 
-		var hitter_value: float = contact * 0.35 + power_rating * 0.35 + eye * 0.20 + speed * 0.10
+		var hitter_value: float = contact * 0.35 + power_rating * 0.35 + eye * 0.20 + speed * 0.10 + handedness_bonus
 		total += hitter_value
 		count += 1
 
@@ -93,6 +115,25 @@ func _calc_team_attack_value(team) -> float:
 		return 50.0
 
 	return total / float(count)
+
+func _calc_handedness_bonus(batter, opposing_pitcher) -> float:
+	if batter == null or opposing_pitcher == null:
+		return 0.0
+
+	var split_rating: float = float(batter.ratings.get("vs_left", 50))
+	if str(opposing_pitcher.throws) == "L":
+		return (split_rating - 50.0) * 0.08
+
+	return 0.0
+
+func _get_pitcher_hand_label(pitcher) -> String:
+	if pitcher == null:
+		return "RHP"
+
+	if str(pitcher.throws) == "L":
+		return "LHP"
+
+	return "RHP"
 
 func _calc_pitcher_defense_value(pitcher) -> float:
 	if pitcher == null:
@@ -134,17 +175,17 @@ func _apply_team_result(away_team, home_team, away_score: int, home_score: int) 
 		away_team.standings["draws"] = int(away_team.standings["draws"]) + 1
 		home_team.standings["draws"] = int(home_team.standings["draws"]) + 1
 
-func _apply_minimal_player_stats(away_team, home_team, away_starter, home_starter, away_score: int, home_score: int) -> void:
-	_apply_minimal_batting_stats(away_team, away_score)
-	_apply_minimal_batting_stats(home_team, home_score)
+func _apply_minimal_player_stats(_away_team, _home_team, away_starter, home_starter, away_score: int, home_score: int, away_lineup_ids: Array[String], home_lineup_ids: Array[String]) -> void:
+	_apply_minimal_batting_stats(away_lineup_ids, away_score)
+	_apply_minimal_batting_stats(home_lineup_ids, home_score)
 
 	_apply_minimal_pitching_stats(away_starter, home_score, away_score > home_score, away_score < home_score)
 	_apply_minimal_pitching_stats(home_starter, away_score, home_score > away_score, home_score < away_score)
 
-func _apply_minimal_batting_stats(team, team_score: int) -> void:
+func _apply_minimal_batting_stats(lineup_ids: Array[String], team_score: int) -> void:
 	var lineup_players: Array = []
 
-	for player_id in team.lineup_vs_r:
+	for player_id in lineup_ids:
 		var p = LeagueState.get_player(str(player_id))
 		if p != null:
 			lineup_players.append(p)

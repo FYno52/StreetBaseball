@@ -1,4 +1,4 @@
-extends Node
+﻿extends Node
 
 const TEAM_DATA_SCRIPT = preload("res://scripts/data/team_data.gd")
 const PLAYER_DATA_SCRIPT = preload("res://scripts/data/player_data.gd")
@@ -283,33 +283,7 @@ func get_team_pitchers_sorted_by_era(team_id: String) -> Array:
 	return result
 
 func _ready() -> void:
-	LeagueState.new_game()
-
-	# 5日分だけ消化して、投手成績に差を作る
-	for i in range(5):
-		LeagueState.simulate_current_day()
-		LeagueState.advance_day()
-
-	var sample_team_id: String = LeagueState.all_team_ids()[0]
-	var sample_team = LeagueState.get_team(sample_team_id)
-
-	print("=== TEAM PITCHING RANKING ===")
-	print("team: ", sample_team.name)
-
-	var ranked_pitchers: Array = LeagueState.get_team_pitchers_sorted_by_era(sample_team_id)
-
-	for i in range(ranked_pitchers.size()):
-		var p = ranked_pitchers[i]
-		print(
-			str(i + 1), ". ",
-			p.full_name,
-			"  ERA:", p.get_era(),
-			" W:", p.pitching_stats["wins"],
-			" L:", p.pitching_stats["losses"],
-			" SO:", p.pitching_stats["so"],
-			" ER:", p.pitching_stats["er"],
-			" OUTS:", p.pitching_stats["outs"]
-		)
+	pass
 
 func get_team_report(team_id: String) -> Dictionary:
 	return {

@@ -95,6 +95,7 @@ func build_fielder(player_id: String, pos: String, archetype: String):
 			p.ratings["fielding"] = rand_rating(40, 85)
 			p.ratings["catching"] = rand_rating(25, 60)
 
+	p.ratings["vs_left"] = rand_rating(35, 85)
 	p.overall = p.calc_overall()
 	return p
 
@@ -144,7 +145,7 @@ func build_pitcher(player_id: String, role_name: String, archetype: String):
 		p.ratings["stamina"] = rand_rating(20, 60)
 
 	var pitch_pool: Array[String] = ["4SFB", "2SFB", "SL", "CB", "CH", "SPL", "CUT", "SFF"]
-	
+
 	p.pitch_types.clear()
 	p.pitch_types.append("4SFB")
 
@@ -175,9 +176,61 @@ func _sort_by_overall_desc(a, b) -> bool:
 	return int(a.overall) > int(b.overall)
 
 func _sort_fielder_attack_desc(a, b) -> bool:
-	var av: int = int(a.ratings["contact"]) + int(a.ratings["power"]) + int(a.ratings["eye"]) + int(a.ratings["speed"])
-	var bv: int = int(b.ratings["contact"]) + int(b.ratings["power"]) + int(b.ratings["eye"]) + int(b.ratings["speed"])
-	return av > bv
+	return _calc_attack_score(a, false) > _calc_attack_score(b, false)
+
+func _calc_attack_score(player, versus_left: bool) -> float:
+	var contact: float = float(player.ratings["contact"])
+	var power_rating: float = float(player.ratings["power"])
+	var eye: float = float(player.ratings["eye"])
+	var speed: float = float(player.ratings["speed"])
+	var split_bonus: float = 0.0
+
+	if versus_left:
+		split_bonus += (float(player.ratings.get("vs_left", 50)) - 50.0) * 0.8
+		if str(player.bats) == "R":
+			split_bonus += 4.0
+		elif str(player.bats) == "S":
+			split_bonus += 2.0
+		elif str(player.bats) == "L":
+			split_bonus -= 3.0
+
+	return contact * 0.35 + power_rating * 0.35 + eye * 0.20 + speed * 0.10 + split_bonus
+
+func _collect_position_candidates(fielders: Array, used_ids: Array[String], target_pos: String) -> Array:
+	var candidates: Array = []
+
+	for f in fielders:
+		if str(f.id) in used_ids:
+			continue
+		if str(f.primary_position) == target_pos or target_pos in f.secondary_positions:
+			candidates.append(f)
+
+	if candidates.is_empty():
+		for f in fielders:
+			if not (str(f.id) in used_ids):
+				candidates.append(f)
+
+	return candidates
+
+func _build_lineup(fielders: Array, versus_left: bool) -> Array[String]:
+	var defense_order: Array[String] = [POS_C, POS_1B, POS_2B, POS_3B, POS_SS, POS_LF, POS_CF, POS_RF, POS_DH]
+	var used_ids: Array[String] = []
+	var lineup_ids: Array[String] = []
+
+	for target_pos in defense_order:
+		var candidates: Array = _collect_position_candidates(fielders, used_ids, target_pos)
+		candidates.sort_custom(func(a, b):
+			return _calc_attack_score(a, versus_left) > _calc_attack_score(b, versus_left)
+		)
+
+		if candidates.is_empty():
+			continue
+
+		var picked = candidates[0]
+		lineup_ids.append(str(picked.id))
+		used_ids.append(str(picked.id))
+
+	return lineup_ids
 
 func generate_team_roster(team_id: String, team_name: String) -> Dictionary:
 	var team = TEAM_DATA_SCRIPT.new()
@@ -237,7 +290,7 @@ func generate_team_roster(team_id: String, team_name: String) -> Dictionary:
 			p_fielder.secondary_positions.append(POS_LF)
 			p_fielder.secondary_positions.append(POS_CF)
 			p_fielder.secondary_positions.append(POS_RF)
-			
+
 		created_players.append(p_fielder)
 
 	for p in created_players:
@@ -278,33 +331,19 @@ func generate_team_roster(team_id: String, team_name: String) -> Dictionary:
 	if relievers.size() > 0:
 		team.bullpen["long"] = str(relievers[relievers.size() - 1].id)
 
-	var defense_order: Array[String] = [POS_C, POS_1B, POS_2B, POS_3B, POS_SS, POS_LF, POS_CF, POS_RF, POS_DH]
-	var used_ids: Array[String] = []
+	team.lineup_vs_r = _build_lineup(fielders, false)
+	team.lineup_vs_l = _build_lineup(fielders, true)
 
-	for target_pos in defense_order:
-		var candidates: Array = []
-
-		for f in fielders:
-			if str(f.id) in used_ids:
-				continue
-			if str(f.primary_position) == target_pos:
-				candidates.append(f)
-
-		if candidates.is_empty():
-			for f in fielders:
-				if not (str(f.id) in used_ids):
-					candidates.append(f)
-
-		candidates.sort_custom(_sort_fielder_attack_desc)
-
-		if candidates.size() > 0:
-			var picked = candidates[0]
-			team.lineup_vs_r.append(str(picked.id))
-			team.lineup_vs_l.append(str(picked.id))
-			used_ids.append(str(picked.id))
+	var bench_used_ids: Array[String] = []
+	for player_id in team.lineup_vs_r:
+		if not (player_id in bench_used_ids):
+			bench_used_ids.append(player_id)
+	for player_id in team.lineup_vs_l:
+		if not (player_id in bench_used_ids):
+			bench_used_ids.append(player_id)
 
 	for f in fielders:
-		if not (str(f.id) in used_ids):
+		if not (str(f.id) in bench_used_ids):
 			team.bench_ids.append(str(f.id))
 
 	return {
