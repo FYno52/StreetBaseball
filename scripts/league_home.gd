@@ -7,6 +7,8 @@ extends Control
 @onready var save_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/SaveButton
 @onready var load_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/LoadButton
 @onready var save_status_label: Label = $RootScroll/MarginContainer/RootVBox/SaveStatusLabel
+@onready var season_status_title_label: Label = $RootScroll/MarginContainer/RootVBox/SeasonStatusTitleLabel
+@onready var season_status_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SeasonStatusDetailLabel
 @onready var team_list_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/TeamListScroll/TeamListVBox
 @onready var selected_team_title_label: Label = $RootScroll/MarginContainer/RootVBox/SelectedTeamTitleLabel
 @onready var selected_team_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SelectedTeamDetailLabel
@@ -47,6 +49,8 @@ func _ready() -> void:
 	save_button.text = "セーブ"
 	load_button.text = "ロード"
 	save_status_label.text = "保存データは user://save_01.json を使います"
+	season_status_title_label.text = "シーズン状況"
+	season_status_detail_label.text = "シーズン進行中です"
 	selected_team_title_label.text = "チーム詳細"
 	selected_team_detail_label.text = "まだチームが選択されていません"
 	lineup_vs_r_title_label.text = "対右投手スタメン"
@@ -100,6 +104,7 @@ func _refresh_view() -> void:
 		button.pressed.connect(_on_team_button_pressed.bind(str(s["id"])))
 		team_list_vbox.add_child(button)
 
+	_refresh_season_status()
 	_refresh_selected_team_detail()
 	_refresh_selected_team_lineups()
 	_refresh_lineup_editor()
@@ -151,6 +156,69 @@ func _on_load_button_pressed() -> void:
 	selected_rotation_index = -1
 	save_status_label.text = "ロードしました: user://save_01.json"
 	_refresh_view()
+
+func _refresh_season_status() -> void:
+	var season_finished: bool = LeagueState.current_day > LeagueState.get_last_day()
+	if not season_finished:
+		season_status_detail_label.text = "シーズン進行中: Day %d / %d\n1日消化でリーグが進みます" % [
+			LeagueState.current_day,
+			LeagueState.get_last_day()
+		]
+		return
+
+	var sorted_teams: Array = LeagueState.get_teams_sorted_by_win_pct()
+	if sorted_teams.is_empty():
+		season_status_detail_label.text = "シーズン結果を表示できません"
+		return
+
+	var champion = sorted_teams[0]
+	var last_place = sorted_teams[sorted_teams.size() - 1]
+	var best_offense = _find_team_by_runs_for(true)
+	var best_defense = _find_team_by_runs_against(true)
+
+	season_status_detail_label.text = "シーズン終了\n優勝: %s\n最下位: %s\n最多得点: %s (%d)\n最少失点: %s (%d)\n総試合日数: %d" % [
+		champion.name,
+		last_place.name,
+		best_offense.name if best_offense != null else "-",
+		int(best_offense.standings["runs_for"]) if best_offense != null else 0,
+		best_defense.name if best_defense != null else "-",
+		int(best_defense.standings["runs_against"]) if best_defense != null else 0,
+		LeagueState.get_last_day()
+	]
+
+func _find_team_by_runs_for(highest: bool):
+	var best_team = null
+	for team_id in LeagueState.all_team_ids():
+		var team = LeagueState.get_team(team_id)
+		if team == null:
+			continue
+		if best_team == null:
+			best_team = team
+			continue
+		var team_runs: int = int(team.standings["runs_for"])
+		var best_runs: int = int(best_team.standings["runs_for"])
+		if highest and team_runs > best_runs:
+			best_team = team
+		elif not highest and team_runs < best_runs:
+			best_team = team
+	return best_team
+
+func _find_team_by_runs_against(lowest: bool):
+	var best_team = null
+	for team_id in LeagueState.all_team_ids():
+		var team = LeagueState.get_team(team_id)
+		if team == null:
+			continue
+		if best_team == null:
+			best_team = team
+			continue
+		var team_runs: int = int(team.standings["runs_against"])
+		var best_runs: int = int(best_team.standings["runs_against"])
+		if lowest and team_runs < best_runs:
+			best_team = team
+		elif not lowest and team_runs > best_runs:
+			best_team = team
+	return best_team
 
 func _on_team_button_pressed(team_id: String) -> void:
 	selected_team_id = team_id
