@@ -6,6 +6,7 @@ const GAME_DATA_SCRIPT = preload("res://scripts/data/game_data.gd")
 
 var season_year: int = 1
 var current_day: int = 1
+var controlled_team_id: String = ""
 
 # team_id -> TeamData
 var teams: Dictionary = {}
@@ -30,6 +31,7 @@ var team_master: Array[Dictionary] = [
 func reset() -> void:
 	season_year = 1
 	current_day = 1
+	controlled_team_id = ""
 	teams.clear()
 	players.clear()
 	schedule.clear()
@@ -70,6 +72,18 @@ func start_new_season() -> void:
 		player.reset_season_stats()
 
 	_generate_schedule()
+
+func set_controlled_team(team_id: String) -> void:
+	if team_id == "":
+		return
+	if not teams.has(team_id):
+		return
+	controlled_team_id = team_id
+
+func get_controlled_team() -> TeamData:
+	if controlled_team_id == "":
+		return null
+	return get_team(controlled_team_id)
 
 func _generate_schedule() -> void:
 	schedule.clear()
@@ -360,6 +374,7 @@ func to_save_dict() -> Dictionary:
 		"save_version": 1,
 		"season_year": season_year,
 		"current_day": current_day,
+		"controlled_team_id": controlled_team_id,
 		"recent_events": recent_events.duplicate(),
 		"daily_team_bonuses": daily_team_bonuses.duplicate(true),
 		"teams": team_dict,
@@ -370,6 +385,7 @@ func to_save_dict() -> Dictionary:
 func load_from_dict(data: Dictionary) -> void:
 	season_year = int(data.get("season_year", 1))
 	current_day = int(data.get("current_day", 1))
+	controlled_team_id = str(data.get("controlled_team_id", ""))
 	recent_events.clear()
 	for event_text in data.get("recent_events", []):
 		recent_events.append(str(event_text))
@@ -390,6 +406,9 @@ func load_from_dict(data: Dictionary) -> void:
 	var raw_schedule: Array = data.get("schedule", [])
 	for raw_game in raw_schedule:
 		schedule.append(GAME_DATA_SCRIPT.from_dict(raw_game))
+
+	if controlled_team_id != "" and not teams.has(controlled_team_id):
+		controlled_team_id = ""
 
 func save_to_file(path: String = "user://save_01.json") -> bool:
 	var file = FileAccess.open(path, FileAccess.WRITE)

@@ -75,6 +75,9 @@ var bullpen_edit_target: String = ""
 func _ready() -> void:
 	if LeagueState.teams.is_empty() or LeagueState.schedule.is_empty():
 		LeagueState.new_game()
+	if LeagueState.controlled_team_id == "":
+		get_tree().change_scene_to_file("res://scenes/TeamSelect.tscn")
+		return
 
 	title_label.text = "ストリート野球"
 	team_management_button.text = "チーム管理へ"
@@ -139,7 +142,11 @@ func _ready() -> void:
 
 func _refresh_view() -> void:
 	_apply_home_mode_layout()
-	info_label.text = "現在日: %d\n今日はここから 1日消化 を進めるか、チーム管理とリーグ情報へ移動できます。" % LeagueState.current_day
+	var controlled_team_text: String = "未設定"
+	var controlled_team: TeamData = LeagueState.get_controlled_team()
+	if controlled_team != null:
+		controlled_team_text = controlled_team.name
+	info_label.text = "現在日: %d\n担当球団: %s\n今日はここから 1日消化 を進めるか、チーム管理とリーグ情報へ移動できます。" % [LeagueState.current_day, controlled_team_text]
 
 	for child in team_list_vbox.get_children():
 		child.queue_free()
@@ -431,7 +438,9 @@ func _refresh_home_digest() -> void:
 
 func _refresh_focus_team_summary() -> void:
 	var focus_team: TeamData = null
-	if selected_team_id != "":
+	if LeagueState.controlled_team_id != "":
+		focus_team = LeagueState.get_team(LeagueState.controlled_team_id)
+	elif selected_team_id != "":
 		focus_team = LeagueState.get_team(selected_team_id)
 
 	if focus_team == null:
@@ -445,6 +454,8 @@ func _refresh_focus_team_summary() -> void:
 
 	var lines: Array[String] = []
 	lines.append("チーム: %s" % focus_team.name)
+	if LeagueState.controlled_team_id == str(focus_team.id):
+		lines.append("担当球団")
 	lines.append("戦績: %d勝 %d敗 %d分" % [
 		int(focus_team.standings["wins"]),
 		int(focus_team.standings["losses"]),

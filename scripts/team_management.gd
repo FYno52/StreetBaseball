@@ -4,6 +4,7 @@ const HOME_SCENE_PATH := "res://scenes/LeagueHome.tscn"
 
 @onready var title_label: Label = $RootScroll/MarginContainer/RootVBox/TitleLabel
 @onready var back_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/BackButton
+@onready var set_controlled_team_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/SetControlledTeamButton
 @onready var info_label: Label = $RootScroll/MarginContainer/RootVBox/InfoLabel
 @onready var team_list_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/TeamListScroll/TeamListVBox
 @onready var selected_team_title_label: Label = $RootScroll/MarginContainer/RootVBox/SelectedTeamTitleLabel
@@ -48,6 +49,7 @@ var bullpen_edit_target: String = ""
 func _ready() -> void:
 	title_label.text = "チーム管理"
 	back_button.text = "ホームへ戻る"
+	set_controlled_team_button.text = "担当球団にする"
 	info_label.text = "チームを選ぶと編成を編集できます"
 	selected_team_title_label.text = "チーム詳細"
 	strategy_title_label.text = "チーム方針"
@@ -72,6 +74,7 @@ func _ready() -> void:
 	strategy_pitching_button.text = "投手重視"
 
 	back_button.pressed.connect(_on_back_button_pressed)
+	set_controlled_team_button.pressed.connect(_on_set_controlled_team_button_pressed)
 	edit_vs_r_button.pressed.connect(_on_edit_mode_pressed.bind("vs_r"))
 	edit_vs_l_button.pressed.connect(_on_edit_mode_pressed.bind("vs_l"))
 	cancel_edit_button.pressed.connect(_on_cancel_edit_pressed)
@@ -86,27 +89,32 @@ func _ready() -> void:
 	bullpen_long_button.pressed.connect(_on_bullpen_role_button_pressed.bind("long"))
 	bullpen_auto_button.pressed.connect(_on_bullpen_auto_button_pressed)
 
+	if LeagueState.controlled_team_id != "":
+		selected_team_id = LeagueState.controlled_team_id
+
 	_refresh_view()
 
 func _refresh_view() -> void:
+	_apply_controlled_team_mode()
 	for child in team_list_vbox.get_children():
 		child.queue_free()
 
-	var summaries: Array = LeagueState.get_league_team_summaries()
-	for i in range(summaries.size()):
-		var summary: Dictionary = summaries[i]
-		var button := Button.new()
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.text = "%d. %s  勝:%s 敗:%s 分:%s  勝率:%.3f" % [
-			i + 1,
-			str(summary["name"]),
-			str(summary["wins"]),
-			str(summary["losses"]),
-			str(summary["draws"]),
-			float(summary["win_pct"])
-		]
-		button.pressed.connect(_on_team_button_pressed.bind(str(summary["id"])))
-		team_list_vbox.add_child(button)
+	if team_list_vbox.visible:
+		var summaries: Array = LeagueState.get_league_team_summaries()
+		for i in range(summaries.size()):
+			var summary: Dictionary = summaries[i]
+			var button: Button = Button.new()
+			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			button.text = "%d. %s  勝:%s 敗:%s 分:%s  勝率:%.3f" % [
+				i + 1,
+				str(summary["name"]),
+				str(summary["wins"]),
+				str(summary["losses"]),
+				str(summary["draws"]),
+				float(summary["win_pct"])
+			]
+			button.pressed.connect(_on_team_button_pressed.bind(str(summary["id"])))
+			team_list_vbox.add_child(button)
 
 	_refresh_selected_team_detail()
 	_refresh_strategy_editor()
@@ -115,8 +123,32 @@ func _refresh_view() -> void:
 	_refresh_selected_team_rotation()
 	_refresh_selected_team_bullpen()
 
+func _apply_controlled_team_mode() -> void:
+	var has_controlled_team: bool = LeagueState.controlled_team_id != ""
+	var team_list_scroll: Node = $RootScroll/MarginContainer/RootVBox/TeamListScroll
+	if has_controlled_team:
+		if selected_team_id == "":
+			selected_team_id = LeagueState.controlled_team_id
+		info_label.text = "担当球団の編成を管理します。打線、ローテ、ブルペン、方針をここで調整できます。"
+		team_list_scroll.visible = false
+		set_controlled_team_button.visible = false
+	else:
+		info_label.text = "チームを選ぶと編成を編集できます"
+		team_list_scroll.visible = true
+		set_controlled_team_button.visible = true
+
 func _on_back_button_pressed() -> void:
 	get_tree().change_scene_to_file(HOME_SCENE_PATH)
+
+func _on_set_controlled_team_button_pressed() -> void:
+	if selected_team_id == "":
+		info_label.text = "担当球団にしたいチームを先に選んでください"
+		return
+	LeagueState.set_controlled_team(selected_team_id)
+	var team = LeagueState.get_team(selected_team_id)
+	if team != null:
+		info_label.text = "担当球団を %s に設定しました" % team.name
+	_refresh_selected_team_detail()
 
 func _on_team_button_pressed(team_id: String) -> void:
 	selected_team_id = team_id
@@ -127,7 +159,10 @@ func _on_team_button_pressed(team_id: String) -> void:
 
 	var team = LeagueState.get_team(team_id)
 	if team != null:
-		info_label.text = "選択中のチーム: %s" % team.name
+		var controlled_text: String = ""
+		if LeagueState.controlled_team_id == team_id:
+			controlled_text = " / 担当球団"
+		info_label.text = "選択中のチーム: %s%s" % [team.name, controlled_text]
 	else:
 		info_label.text = "チームデータが見つかりません"
 
@@ -193,7 +228,7 @@ func _refresh_selected_team_detail() -> void:
 	var pitch_value: float = SimulationEngine.get_team_pitch_value(team)
 	var total: float = SimulationEngine.get_team_total_strength(team)
 	selected_team_detail_label.text = "チーム名: %s\n勝敗: %s勝 %s敗 %s分\nファン人気: %d\n予算: %d\n方針: %s\n打撃力: %.2f\n投手力: %.2f\n総合力: %.2f" % [
-		team.name,
+		("%s%s" % [team.name, " (担当球団)" if LeagueState.controlled_team_id == selected_team_id else ""]),
 		str(team.standings["wins"]),
 		str(team.standings["losses"]),
 		str(team.standings["draws"]),
