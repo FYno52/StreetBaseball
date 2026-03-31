@@ -259,12 +259,14 @@ func _on_sim_day_button_pressed() -> void:
 	var games_today: Array = LeagueState.simulate_current_day()
 	_store_recent_games(simulated_day, games_today)
 
-	LeagueState.complete_day_transition()
+	var transition_report: Array[String] = LeagueState.complete_day_transition()
 
 	if games_today.is_empty():
 		save_status_label.text = "%s を消化しました / 今日は試合なし" % simulated_date_label
 	else:
 		save_status_label.text = "%s を消化しました / 試合数: %d" % [simulated_date_label, games_today.size()]
+	if not transition_report.is_empty():
+		save_status_label.text += "\n年越し: " + str(transition_report[0])
 	_append_integrity_notes_to_status()
 
 	_refresh_view()
@@ -295,6 +297,8 @@ func _simulate_multiple_days(day_count: int) -> void:
 	var start_date_label: String = str(summary.get("start_date_label", ""))
 	var end_date_label: String = str(summary.get("end_date_label", ""))
 	var calendar_days_passed: int = int(summary.get("calendar_days_passed", 0))
+	var transition_count: int = int(summary.get("transition_count", 0))
+	var transition_headline: String = str(summary.get("transition_headline", ""))
 
 	last_game_ids.clear()
 	selected_game_id = ""
@@ -315,6 +319,10 @@ func _simulate_multiple_days(day_count: int) -> void:
 			]
 		else:
 			save_status_label.text = "%d日進めました / 消化試合数: %d" % [simulated_days, played_games]
+		if transition_count > 0:
+			save_status_label.text += "\n年越し: %d回" % transition_count
+			if transition_headline != "":
+				save_status_label.text += " / " + transition_headline
 
 	_append_integrity_notes_to_status()
 	_refresh_view()

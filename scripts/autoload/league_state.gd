@@ -1196,6 +1196,8 @@ func simulate_days(day_count: int) -> Dictionary:
 	var end_date_label: String = ""
 	var calendar_days_passed: int = 0
 	var end_info: Dictionary = {}
+	var transition_count: int = 0
+	var last_transition_headline: String = ""
 
 	if day_count <= 0:
 		return {
@@ -1205,6 +1207,8 @@ func simulate_days(day_count: int) -> Dictionary:
 			"start_date_label": start_date_label,
 			"end_date_label": end_date_label,
 			"calendar_days_passed": calendar_days_passed,
+			"transition_count": transition_count,
+			"transition_headline": last_transition_headline,
 			"season_finished": current_day > get_last_day()
 		}
 
@@ -1219,7 +1223,10 @@ func simulate_days(day_count: int) -> Dictionary:
 		played_games += games_today.size()
 		simulated_days += 1
 
-		complete_day_transition()
+		var transition_report: Array[String] = complete_day_transition()
+		if not transition_report.is_empty():
+			transition_count += 1
+			last_transition_headline = str(transition_report[0])
 
 	if last_simulated_day > 0 and not end_info.is_empty():
 		calendar_days_passed = _calc_calendar_day_span(
@@ -1238,6 +1245,8 @@ func simulate_days(day_count: int) -> Dictionary:
 		"start_date_label": start_date_label,
 		"end_date_label": end_date_label,
 		"calendar_days_passed": calendar_days_passed,
+		"transition_count": transition_count,
+		"transition_headline": last_transition_headline,
 		"season_finished": false
 	}
 
