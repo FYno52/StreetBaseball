@@ -259,12 +259,51 @@ func _apply_event_bonus(bonuses: Dictionary, event_data: Dictionary) -> void:
 	var current_bonus: Dictionary = bonuses[team_id]
 	current_bonus["attack"] = float(current_bonus.get("attack", 0.0)) + float(event_data.get("attack", 0.0))
 	current_bonus["pitch"] = float(current_bonus.get("pitch", 0.0)) + float(event_data.get("pitch", 0.0))
-	bonuses[team_id] = current_bonus
 
 	var team = get_team(team_id)
 	if team != null:
+		current_bonus = _apply_strategy_event_synergy(team, current_bonus, event_data)
 		team.fan_support = clampi(int(team.fan_support) + int(event_data.get("fan_delta", 0)), 0, 100)
 		team.budget = maxi(0, int(team.budget) + int(event_data.get("budget_delta", 0)))
+
+	bonuses[team_id] = current_bonus
+
+func _apply_strategy_event_synergy(team, current_bonus: Dictionary, event_data: Dictionary) -> Dictionary:
+	if team == null:
+		return current_bonus
+
+	var strategy: String = str(team.strategy)
+	var category: String = str(event_data.get("category", ""))
+	var attack_delta: float = float(event_data.get("attack", 0.0))
+	var pitch_delta: float = float(event_data.get("pitch", 0.0))
+
+	match strategy:
+		"power":
+			if attack_delta > 0.0:
+				current_bonus["attack"] = float(current_bonus.get("attack", 0.0)) + 0.35
+			elif attack_delta < 0.0:
+				current_bonus["attack"] = float(current_bonus.get("attack", 0.0)) - 0.15
+		"speed":
+			if category == "街の噂":
+				current_bonus["attack"] = float(current_bonus.get("attack", 0.0)) + 0.20
+			if int(event_data.get("fan_delta", 0)) > 0:
+				current_bonus["attack"] = float(current_bonus.get("attack", 0.0)) + 0.15
+		"defense":
+			if pitch_delta > 0.0:
+				current_bonus["pitch"] = float(current_bonus.get("pitch", 0.0)) + 0.40
+			elif attack_delta < 0.0 and pitch_delta < 0.0:
+				current_bonus["pitch"] = float(current_bonus.get("pitch", 0.0)) - 0.10
+		"pitching":
+			if pitch_delta > 0.0:
+				current_bonus["pitch"] = float(current_bonus.get("pitch", 0.0)) + 0.55
+			elif pitch_delta < 0.0:
+				current_bonus["pitch"] = float(current_bonus.get("pitch", 0.0)) - 0.20
+		_:
+			if category == "不穏":
+				current_bonus["attack"] = float(current_bonus.get("attack", 0.0)) + 0.15
+				current_bonus["pitch"] = float(current_bonus.get("pitch", 0.0)) + 0.15
+
+	return current_bonus
 
 func get_teams_sorted_by_win_pct() -> Array:
 	var result: Array = []
