@@ -20,12 +20,19 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 
 	var away_lineup_ids: Array[String] = _get_lineup_ids_for_matchup(away_team, home_starter)
 	var home_lineup_ids: Array[String] = _get_lineup_ids_for_matchup(home_team, away_starter)
+	var away_event_bonus: Dictionary = LeagueState.get_team_event_bonus(str(away_team.id))
+	var home_event_bonus: Dictionary = LeagueState.get_team_event_bonus(str(home_team.id))
 
 	var away_attack: float = _calc_team_attack_value(away_team, away_lineup_ids, home_starter)
 	var home_attack: float = _calc_team_attack_value(home_team, home_lineup_ids, away_starter)
 
 	var away_pitch_def: float = _calc_pitcher_defense_value(away_starter)
 	var home_pitch_def: float = _calc_pitcher_defense_value(home_starter)
+
+	away_attack += float(away_event_bonus.get("attack", 0.0))
+	home_attack += float(home_event_bonus.get("attack", 0.0))
+	away_pitch_def += float(away_event_bonus.get("pitch", 0.0))
+	home_pitch_def += float(home_event_bonus.get("pitch", 0.0))
 
 	var away_score: int = _calc_score_from_matchup(away_attack, home_pitch_def)
 	var home_score: int = _calc_score_from_matchup(home_attack, away_pitch_def)
@@ -48,39 +55,43 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 		save_pitcher = _get_save_pitcher_from_plan(home_plan, run_margin)
 
 	var log_lines: Array[String] = []
-	log_lines.append("Game Start")
+	log_lines.append("試合開始")
 	log_lines.append("%s vs %s" % [away_team.name, home_team.name])
 
 	if away_starter != null:
-		log_lines.append("away starter: %s (%s)" % [away_starter.full_name, away_starter.throws])
+		log_lines.append("ビジター先発: %s (%s)" % [away_starter.full_name, away_starter.throws])
 	else:
-		log_lines.append("away starter: none")
+		log_lines.append("ビジター先発: なし")
 
 	if home_starter != null:
-		log_lines.append("home starter: %s (%s)" % [home_starter.full_name, home_starter.throws])
+		log_lines.append("ホーム先発: %s (%s)" % [home_starter.full_name, home_starter.throws])
 	else:
-		log_lines.append("home starter: none")
+		log_lines.append("ホーム先発: なし")
 
-	log_lines.append("away lineup vs %s" % _get_pitcher_hand_label(home_starter))
-	log_lines.append("home lineup vs %s" % _get_pitcher_hand_label(away_starter))
-	log_lines.append("away_attack=%.2f / home_pitch_def=%.2f" % [away_attack, home_pitch_def])
-	log_lines.append("home_attack=%.2f / away_pitch_def=%.2f" % [home_attack, away_pitch_def])
-	log_lines.append("End of 9th")
+	log_lines.append("ビジター打線: 対%s" % _get_pitcher_hand_label(home_starter))
+	log_lines.append("ホーム打線: 対%s" % _get_pitcher_hand_label(away_starter))
+	log_lines.append("ビジター方針: %s" % _get_strategy_log_label(str(away_team.strategy)))
+	log_lines.append("ホーム方針: %s" % _get_strategy_log_label(str(home_team.strategy)))
+	log_lines.append("ビジターイベント補正: 打撃=%.2f 投手=%.2f" % [float(away_event_bonus.get("attack", 0.0)), float(away_event_bonus.get("pitch", 0.0))])
+	log_lines.append("ホームイベント補正: 打撃=%.2f 投手=%.2f" % [float(home_event_bonus.get("attack", 0.0)), float(home_event_bonus.get("pitch", 0.0))])
+	log_lines.append("ビジター打撃力=%.2f / ホーム投手力=%.2f" % [away_attack, home_pitch_def])
+	log_lines.append("ホーム打撃力=%.2f / ビジター投手力=%.2f" % [home_attack, away_pitch_def])
+	log_lines.append("9回終了")
 	log_lines.append("%s %d - %d %s" % [away_team.name, away_score, home_score, home_team.name])
 
 	if away_score > home_score:
-		log_lines.append("%s win" % away_team.name)
+		log_lines.append("%s の勝利" % away_team.name)
 	elif home_score > away_score:
-		log_lines.append("%s win" % home_team.name)
+		log_lines.append("%s の勝利" % home_team.name)
 	else:
-		log_lines.append("Draw")
+		log_lines.append("引き分け")
 
 	if winning_pitcher != null:
-		log_lines.append("Winning pitcher: %s" % winning_pitcher.full_name)
+		log_lines.append("勝利投手: %s" % winning_pitcher.full_name)
 	if losing_pitcher != null:
-		log_lines.append("Losing pitcher: %s" % losing_pitcher.full_name)
+		log_lines.append("敗戦投手: %s" % losing_pitcher.full_name)
 	if save_pitcher != null:
-		log_lines.append("Save: %s" % save_pitcher.full_name)
+		log_lines.append("セーブ: %s" % save_pitcher.full_name)
 
 	game.played = true
 	game.away_score = away_score
@@ -141,7 +152,7 @@ func _calc_team_attack_value(team, lineup_ids: Array[String] = [], opposing_pitc
 	if count == 0:
 		return 50.0
 
-	return total / float(count)
+	return total / float(count) + _get_strategy_attack_bonus(team)
 
 func _calc_handedness_bonus(batter, opposing_pitcher) -> float:
 	if batter == null or opposing_pitcher == null:
@@ -155,12 +166,25 @@ func _calc_handedness_bonus(batter, opposing_pitcher) -> float:
 
 func _get_pitcher_hand_label(pitcher) -> String:
 	if pitcher == null:
-		return "RHP"
+		return "右投手"
 
 	if str(pitcher.throws) == "L":
-		return "LHP"
+		return "左投手"
 
-	return "RHP"
+	return "右投手"
+
+func _get_strategy_log_label(strategy: String) -> String:
+	match strategy:
+		"power":
+			return "強打"
+		"speed":
+			return "機動力"
+		"defense":
+			return "守備重視"
+		"pitching":
+			return "投手重視"
+		_:
+			return "標準"
 
 func _calc_pitcher_defense_value(pitcher) -> float:
 	if pitcher == null:
@@ -174,6 +198,38 @@ func _calc_pitcher_defense_value(pitcher) -> float:
 	var composure: float = float(pitcher.ratings["composure"])
 
 	return velocity * 0.20 + control * 0.22 + stamina * 0.18 + break_value * 0.18 + k_rate * 0.12 + composure * 0.10
+
+func _get_strategy_attack_bonus(team) -> float:
+	if team == null:
+		return 0.0
+
+	match str(team.strategy):
+		"power":
+			return 1.2
+		"speed":
+			return 0.8
+		"defense":
+			return -0.4
+		"pitching":
+			return -0.6
+		_:
+			return 0.0
+
+func _get_strategy_pitch_bonus(team) -> float:
+	if team == null:
+		return 0.0
+
+	match str(team.strategy):
+		"defense":
+			return 0.8
+		"pitching":
+			return 1.4
+		"speed":
+			return 0.2
+		"power":
+			return -0.2
+		_:
+			return 0.0
 
 func _calc_score_from_matchup(attack_value: float, pitch_def_value: float) -> int:
 	var base_score: float = 4.0
@@ -469,7 +525,7 @@ func get_team_pitch_value(team) -> float:
 		return 50.0
 
 	var starter = LeagueState.get_player(str(team.rotation_ids[0]))
-	return _calc_pitcher_defense_value(starter)
+	return _calc_pitcher_defense_value(starter) + _get_strategy_pitch_bonus(team)
 
 func get_team_total_strength(team) -> float:
 	var attack_value: float = get_team_attack_value(team)

@@ -35,11 +35,11 @@ theme_override_constants/separation = 12
 
 [node name="TitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1807036526]
 layout_mode = 2
-text = "Street Baseball"
+text = "ストリート野球"
 
 [node name="SimDayButton" type="Button" parent="RootScroll/MarginContainer/RootVBox" unique_id=181034300]
 layout_mode = 2
-text = "Sim Day"
+text = "1日消化"
 
 [node name="SaveButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1222186583]
 layout_mode = 2
@@ -47,58 +47,69 @@ theme_override_constants/separation = 8
 
 [node name="SaveButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SaveButtonsHBox" unique_id=992151726]
 layout_mode = 2
-text = "Save"
+text = "セーブ"
 
 [node name="LoadButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SaveButtonsHBox" unique_id=779434290]
 layout_mode = 2
-text = "Load"
+text = "ロード"
 
 [node name="NewSeasonButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SaveButtonsHBox" unique_id=354081826]
 layout_mode = 2
 disabled = true
-text = "Next Season"
+text = "新シーズン開始"
 
 [node name="SaveStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1729330945]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Save status"
+text = "保存状況"
 autowrap_mode = 3
 
 [node name="SeasonStatusTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1071227978]
 layout_mode = 2
-text = "Season Status"
+text = "シーズン状況"
 
 [node name="SeasonStatusDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1167893880]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Season details"
+text = "シーズン詳細"
 autowrap_mode = 3
 
 [node name="LeadersTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
-text = "League Leaders"
+text = "リーグ個人成績"
 
 [node name="BattingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Batting leaders"
+text = "打撃ランキング"
 autowrap_mode = 3
 
 [node name="PitchingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Pitching leaders"
+text = "投手ランキング"
+autowrap_mode = 3
+
+[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+text = "ストリートニュース"
+
+[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "まだイベントはありません"
 autowrap_mode = 3
 
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=977566212]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Info"
+text = "情報"
 autowrap_mode = 3
 
 [node name="TeamListScroll" type="ScrollContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1061959055]
@@ -113,18 +124,53 @@ theme_override_constants/separation = 6
 
 [node name="SelectedTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=654936110]
 layout_mode = 2
-text = "Selected Team"
+text = "チーム詳細"
 
 [node name="SelectedTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=261534439]
 custom_minimum_size = Vector2(0, 104)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "No team selected"
+text = "まだチームが選択されていません"
 autowrap_mode = 3
+
+[node name="StrategyTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+text = "チーム方針"
+
+[node name="StrategyStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "チームを選ぶと方針を変更できます"
+autowrap_mode = 3
+
+[node name="StrategyButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StrategyBalancedButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+layout_mode = 2
+text = "標準"
+
+[node name="StrategyPowerButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+layout_mode = 2
+text = "強打"
+
+[node name="StrategySpeedButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+layout_mode = 2
+text = "機動力"
+
+[node name="StrategyDefenseButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+layout_mode = 2
+text = "守備重視"
+
+[node name="StrategyPitchingButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+layout_mode = 2
+text = "投手重視"
 
 [node name="LineupVsRTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=237844217]
 layout_mode = 2
-text = "Vs R Lineup"
+text = "対右投手スタメン"
 
 [node name="LineupVsRVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=2019718644]
 layout_mode = 2
@@ -133,7 +179,7 @@ theme_override_constants/separation = 6
 
 [node name="LineupVsLTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=497599368]
 layout_mode = 2
-text = "Vs L Lineup"
+text = "対左投手スタメン"
 
 [node name="LineupVsLVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1306217698]
 layout_mode = 2
@@ -142,7 +188,7 @@ theme_override_constants/separation = 6
 
 [node name="EditTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=257951064]
 layout_mode = 2
-text = "Lineup Editor"
+text = "打線編集"
 
 [node name="EditButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1141288537]
 layout_mode = 2
@@ -150,26 +196,26 @@ theme_override_constants/separation = 8
 
 [node name="EditVsRButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/EditButtonsHBox" unique_id=312634944]
 layout_mode = 2
-text = "Edit vs R"
+text = "対右を編集"
 
 [node name="EditVsLButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/EditButtonsHBox" unique_id=568409700]
 layout_mode = 2
-text = "Edit vs L"
+text = "対左を編集"
 
 [node name="CancelEditButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/EditButtonsHBox" unique_id=449494130]
 layout_mode = 2
-text = "Cancel"
+text = "編集をやめる"
 
 [node name="EditorStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=2040869272]
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Editor status"
+text = "打線編集状況"
 autowrap_mode = 3
 
 [node name="BenchTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=211922786]
 layout_mode = 2
-text = "Bench"
+text = "ベンチ"
 
 [node name="BenchVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=599193298]
 layout_mode = 2
@@ -178,13 +224,13 @@ theme_override_constants/separation = 6
 
 [node name="RotationTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1336810749]
 layout_mode = 2
-text = "Rotation"
+text = "先発ローテ"
 
 [node name="RotationEditorStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1119853119]
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Rotation editor"
+text = "ローテ編集状況"
 autowrap_mode = 3
 
 [node name="RotationVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=74708365]
@@ -195,18 +241,54 @@ theme_override_constants/separation = 6
 
 [node name="BullpenTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=210419684]
 layout_mode = 2
-text = "Bullpen"
+text = "ブルペン"
 
 [node name="BullpenDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=15170208]
 custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Bullpen details"
+text = "ブルペン詳細"
 autowrap_mode = 3
+
+[node name="BullpenEditorStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1695085939]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "ブルペン編集状況"
+autowrap_mode = 3
+
+[node name="BullpenRoleButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=2127529657]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BullpenAutoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=1925088532]
+layout_mode = 2
+text = "自動"
+
+[node name="BullpenCloserButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=1181383206]
+layout_mode = 2
+text = "抑え"
+
+[node name="BullpenSetupButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=286472751]
+layout_mode = 2
+text = "勝ち継投"
+
+[node name="BullpenMiddleButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=1108274127]
+layout_mode = 2
+text = "中継ぎ"
+
+[node name="BullpenLongButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=649688248]
+layout_mode = 2
+text = "ロング"
+
+[node name="BullpenPitchersVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=2003699582]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
 
 [node name="RecentGamesTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1189537524]
 layout_mode = 2
-text = "Recent Games"
+text = "直近の試合一覧"
 
 [node name="RecentGamesVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=2120954436]
 layout_mode = 2
@@ -215,22 +297,22 @@ theme_override_constants/separation = 6
 
 [node name="DecisionTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=2057317972]
 layout_mode = 2
-text = "Decision"
+text = "試合結果"
 
 [node name="DecisionDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=309672469]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Decision details"
+text = "試合結果詳細"
 autowrap_mode = 3
 
 [node name="DetailedLogTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1250882700]
 layout_mode = 2
-text = "Detailed Log"
+text = "試合詳細ログ"
 
 [node name="DetailedLogDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1782508589]
 custom_minimum_size = Vector2(0, 220)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Detailed log"
+text = "試合ログ"
 autowrap_mode = 3

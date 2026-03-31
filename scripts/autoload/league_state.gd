@@ -15,6 +15,8 @@ var players: Dictionary = {}
 
 # Array of GameData
 var schedule: Array = []
+var recent_events: Array[String] = []
+var daily_team_bonuses: Dictionary = {}
 
 var team_master: Array[Dictionary] = [
 	{"id": "TKY", "name": "東京フェニックス"},
@@ -31,6 +33,8 @@ func reset() -> void:
 	teams.clear()
 	players.clear()
 	schedule.clear()
+	recent_events.clear()
+	daily_team_bonuses.clear()
 
 func new_game() -> void:
 	reset()
@@ -50,6 +54,8 @@ func new_game() -> void:
 func start_new_season() -> void:
 	season_year += 1
 	current_day = 1
+	recent_events.clear()
+	daily_team_bonuses.clear()
 
 	for team_id in teams.keys():
 		var team = teams[team_id]
@@ -130,6 +136,9 @@ func all_team_ids() -> Array[String]:
 
 func simulate_current_day() -> Array:
 	var games_today: Array = get_games_for_day(current_day)
+	var event_pack: Dictionary = _generate_daily_events(current_day)
+	recent_events = event_pack.get("texts", [])
+	daily_team_bonuses = event_pack.get("bonuses", {})
 
 	for game in games_today:
 		var away_team = get_team(str(game.away_team_id))
@@ -137,6 +146,125 @@ func simulate_current_day() -> Array:
 		SimulationEngine.simulate_game(game, away_team, home_team)
 
 	return games_today
+
+func get_recent_events() -> Array[String]:
+	return recent_events.duplicate()
+
+func get_team_event_bonus(team_id: String) -> Dictionary:
+	if daily_team_bonuses.has(team_id):
+		return daily_team_bonuses[team_id].duplicate(true)
+	return {"attack": 0.0, "pitch": 0.0}
+
+func _generate_daily_events(day: int) -> Dictionary:
+	var events: Array[String] = []
+	var bonuses: Dictionary = {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(season_year * 1000 + day * 37 + teams.size())
+
+	var chance: float = rng.randf()
+	if chance < 0.35:
+		var event_1: Dictionary = _build_flavor_event(rng)
+		events.append(_format_event_text(event_1))
+		_apply_event_bonus(bonuses, event_1)
+	if chance < 0.10:
+		var event_2: Dictionary = _build_flavor_event(rng)
+		events.append(_format_event_text(event_2))
+		_apply_event_bonus(bonuses, event_2)
+
+	if events.is_empty():
+		events.append("[平穏] 今日は大きな事件なし。いつも通りリーグ戦が進む。")
+
+	return {
+		"texts": events,
+		"bonuses": bonuses
+	}
+
+func _build_flavor_event(rng: RandomNumberGenerator) -> Dictionary:
+	var team_ids: Array[String] = all_team_ids()
+	if team_ids.is_empty():
+		return {"text": "商店街のざわつきだけが残った。"}
+
+	var team_id: String = team_ids[rng.randi_range(0, team_ids.size() - 1)]
+	var team = get_team(team_id)
+	var roster: Array = []
+	if team != null:
+		for player_id in team.player_ids:
+			var player = get_player(str(player_id))
+			if player != null:
+				roster.append(player)
+
+	var player_name: String = team.name if team != null else "名無しチーム"
+	if not roster.is_empty():
+		var picked_player = roster[rng.randi_range(0, roster.size() - 1)]
+		player_name = picked_player.full_name
+
+	var event_defs: Array[Dictionary] = [
+		{"category": "朗報", "text": "%s が試合前に商店街でファンサービス。観客がいつもより集まっている。", "attack": 1.2, "pitch": 0.0, "fan_delta": 3, "budget_delta": 1200},
+		{"category": "朗報", "text": "%s がバットを持って気合いの素振り。チーム全体の空気が少し熱い。", "attack": 1.6, "pitch": 0.0, "fan_delta": 1, "budget_delta": 0},
+		{"category": "街の噂", "text": "%s のベンチで謎の円陣。内容は不明だが、妙に士気が高い。", "attack": 0.8, "pitch": 0.8, "fan_delta": 0, "budget_delta": 0},
+		{"category": "街の噂", "text": "%s 周辺で屋台が盛り上がり、今日はいつもより賑やかな空気。", "attack": 0.5, "pitch": 0.5, "fan_delta": 2, "budget_delta": 800},
+		{"category": "朗報", "text": "%s が『今日は見せ場を作る』と宣言。周囲が少しざわつく。", "attack": 1.4, "pitch": 0.0, "fan_delta": 1, "budget_delta": 0},
+		{"category": "朗報", "text": "%s のメンバーが河川敷で早朝特訓。守りの動きがやけに締まっている。", "attack": 0.0, "pitch": 1.2, "fan_delta": 1, "budget_delta": 0},
+		{"category": "朗報", "text": "%s が近所の子ども相手にキャッチボール教室。街の空気が少し味方している。", "attack": 0.4, "pitch": 0.6, "fan_delta": 4, "budget_delta": 1500},
+		{"category": "街の噂", "text": "%s に差し入れの焼きそばパンが大量到着。ベンチの雰囲気が妙にいい。", "attack": 0.7, "pitch": 0.3, "fan_delta": 1, "budget_delta": 0},
+		{"category": "朗報", "text": "%s のエースが無言でブルペン入り。周囲が勝手に引き締まっている。", "attack": 0.0, "pitch": 1.5, "fan_delta": 0, "budget_delta": 0},
+		{"category": "朗報", "text": "%s の主砲がバッティングセンターで当てまくったらしい。打席前から妙な自信がある。", "attack": 1.8, "pitch": -0.1, "fan_delta": 1, "budget_delta": 0},
+		{"category": "不穏", "text": "%s が遅刻寸前で滑り込み。周囲の視線がやや厳しい。", "attack": -0.4, "pitch": -0.2, "fan_delta": -2, "budget_delta": 0},
+		{"category": "不穏", "text": "%s 周辺で小さな口論。空気が少しピリついている。", "attack": -0.6, "pitch": -0.6, "fan_delta": -1, "budget_delta": 0},
+		{"category": "不穏", "text": "%s の用具がひとつ足りないまま集合。試合前の準備がややバタついている。", "attack": -0.5, "pitch": -0.4, "fan_delta": -1, "budget_delta": -500},
+		{"category": "不穏", "text": "%s のベンチで誰かの説教が長引いたらしい。空気が少し重い。", "attack": -0.7, "pitch": -0.3, "fan_delta": -1, "budget_delta": 0},
+		{"category": "街の噂", "text": "%s に臨時の差し入れ代が発生。財布は痛いが士気は少し上がっている。", "attack": 0.5, "pitch": 0.2, "fan_delta": 0, "budget_delta": -1200},
+		{"category": "街の噂", "text": "%s の応援に地元の先輩たちが大挙して登場。良くも悪くも目立っている。", "attack": 1.0, "pitch": 0.4, "fan_delta": 2, "budget_delta": 600}
+	]
+	var event_def: Dictionary = event_defs[rng.randi_range(0, event_defs.size() - 1)]
+	return {
+		"text": str(event_def["text"]) % player_name,
+		"team_id": team_id,
+		"attack": float(event_def.get("attack", 0.0)),
+		"pitch": float(event_def.get("pitch", 0.0)),
+		"fan_delta": int(event_def.get("fan_delta", 0)),
+		"budget_delta": int(event_def.get("budget_delta", 0))
+	}
+
+func _format_event_text(event_data: Dictionary) -> String:
+	var category: String = str(event_data.get("category", "街の噂"))
+	var text: String = str(event_data.get("text", ""))
+	var fan_delta: int = int(event_data.get("fan_delta", 0))
+	var budget_delta: int = int(event_data.get("budget_delta", 0))
+	var suffix_parts: Array[String] = []
+
+	if fan_delta > 0:
+		suffix_parts.append("人気+%d" % fan_delta)
+	elif fan_delta < 0:
+		suffix_parts.append("人気%d" % fan_delta)
+
+	if budget_delta > 0:
+		suffix_parts.append("予算+%d" % budget_delta)
+	elif budget_delta < 0:
+		suffix_parts.append("予算%d" % budget_delta)
+
+	if suffix_parts.is_empty():
+		return "[%s] %s" % [category, text]
+
+	return "[%s] %s (%s)" % [category, text, " / ".join(suffix_parts)]
+
+func _apply_event_bonus(bonuses: Dictionary, event_data: Dictionary) -> void:
+	var team_id: String = str(event_data.get("team_id", ""))
+	if team_id == "":
+		return
+
+	if not bonuses.has(team_id):
+		bonuses[team_id] = {"attack": 0.0, "pitch": 0.0}
+
+	var current_bonus: Dictionary = bonuses[team_id]
+	current_bonus["attack"] = float(current_bonus.get("attack", 0.0)) + float(event_data.get("attack", 0.0))
+	current_bonus["pitch"] = float(current_bonus.get("pitch", 0.0)) + float(event_data.get("pitch", 0.0))
+	bonuses[team_id] = current_bonus
+
+	var team = get_team(team_id)
+	if team != null:
+		team.fan_support = clampi(int(team.fan_support) + int(event_data.get("fan_delta", 0)), 0, 100)
+		team.budget = maxi(0, int(team.budget) + int(event_data.get("budget_delta", 0)))
 
 func get_teams_sorted_by_win_pct() -> Array:
 	var result: Array = []
@@ -193,6 +321,8 @@ func to_save_dict() -> Dictionary:
 		"save_version": 1,
 		"season_year": season_year,
 		"current_day": current_day,
+		"recent_events": recent_events.duplicate(),
+		"daily_team_bonuses": daily_team_bonuses.duplicate(true),
 		"teams": team_dict,
 		"players": player_dict,
 		"schedule": schedule_list
@@ -201,6 +331,10 @@ func to_save_dict() -> Dictionary:
 func load_from_dict(data: Dictionary) -> void:
 	season_year = int(data.get("season_year", 1))
 	current_day = int(data.get("current_day", 1))
+	recent_events.clear()
+	for event_text in data.get("recent_events", []):
+		recent_events.append(str(event_text))
+	daily_team_bonuses = data.get("daily_team_bonuses", {}).duplicate(true)
 
 	teams.clear()
 	players.clear()
@@ -575,6 +709,113 @@ func get_team_bullpen(team_id: String) -> Dictionary:
 		"middle": middle,
 		"long": long_reliever
 	}
+
+func normalize_team_bullpen(team) -> void:
+	if team == null:
+		return
+
+	var relief_ids: Array[String] = []
+	for player_id in team.player_ids:
+		var player = get_player(str(player_id))
+		if player == null:
+			continue
+		if str(player.role) == "reliever" or str(player.role) == "closer":
+			if not relief_ids.has(str(player.id)):
+				relief_ids.append(str(player.id))
+
+	var closer_id: String = str(team.bullpen.get("closer", ""))
+	if closer_id != "" and not relief_ids.has(closer_id):
+		closer_id = ""
+
+	var long_id: String = str(team.bullpen.get("long", ""))
+	if long_id != "" and (not relief_ids.has(long_id) or long_id == closer_id):
+		long_id = ""
+
+	var setup_ids: Array[String] = []
+	for player_id in team.bullpen.get("setup", []):
+		var resolved_id: String = str(player_id)
+		if resolved_id == "" or resolved_id == closer_id or resolved_id == long_id:
+			continue
+		if not relief_ids.has(resolved_id):
+			continue
+		if setup_ids.has(resolved_id):
+			continue
+		if setup_ids.size() < 2:
+			setup_ids.append(resolved_id)
+
+	var middle_ids: Array[String] = []
+	for player_id in team.bullpen.get("middle", []):
+		var resolved_id: String = str(player_id)
+		if resolved_id == "" or resolved_id == closer_id or resolved_id == long_id:
+			continue
+		if setup_ids.has(resolved_id):
+			continue
+		if not relief_ids.has(resolved_id):
+			continue
+		if middle_ids.has(resolved_id):
+			continue
+		middle_ids.append(resolved_id)
+
+	for relief_id in relief_ids:
+		if relief_id == closer_id or relief_id == long_id:
+			continue
+		if setup_ids.has(relief_id) or middle_ids.has(relief_id):
+			continue
+		middle_ids.append(relief_id)
+
+	team.bullpen["closer"] = closer_id
+	team.bullpen["long"] = long_id
+	team.bullpen["setup"] = setup_ids
+	team.bullpen["middle"] = middle_ids
+
+func auto_assign_team_bullpen(team) -> void:
+	if team == null:
+		return
+
+	var closers: Array = []
+	var relievers: Array = []
+	for player_id in team.player_ids:
+		var player = get_player(str(player_id))
+		if player == null:
+			continue
+		if str(player.role) == "closer":
+			closers.append(player)
+		elif str(player.role) == "reliever":
+			relievers.append(player)
+
+	closers.sort_custom(func(a, b):
+		return int(a.overall) > int(b.overall)
+	)
+	relievers.sort_custom(func(a, b):
+		return int(a.overall) > int(b.overall)
+	)
+
+	team.bullpen["closer"] = ""
+	team.bullpen["setup"] = []
+	team.bullpen["middle"] = []
+	team.bullpen["long"] = ""
+
+	if not closers.is_empty():
+		team.bullpen["closer"] = str(closers[0].id)
+	elif not relievers.is_empty():
+		team.bullpen["closer"] = str(relievers[0].id)
+
+	var remaining_ids: Array[String] = []
+	for pitcher in relievers:
+		var pitcher_id: String = str(pitcher.id)
+		if pitcher_id != str(team.bullpen["closer"]):
+			remaining_ids.append(pitcher_id)
+
+	for i in range(mini(2, remaining_ids.size())):
+		team.bullpen["setup"].append(remaining_ids[i])
+
+	for i in range(2, remaining_ids.size()):
+		team.bullpen["middle"].append(remaining_ids[i])
+
+	if not team.bullpen["middle"].is_empty():
+		team.bullpen["long"] = str(team.bullpen["middle"][team.bullpen["middle"].size() - 1])
+
+	normalize_team_bullpen(team)
 
 func get_starting_pitcher_for_day(team_id: String, day: int):
 	var team = get_team(team_id)
