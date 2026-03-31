@@ -3,8 +3,11 @@
 @onready var title_label: Label = $RootScroll/MarginContainer/RootVBox/TitleLabel
 @onready var team_management_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/TeamManagementButton
 @onready var league_info_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/LeagueInfoButton
+@onready var roster_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/RosterButton
 @onready var info_label: Label = $RootScroll/MarginContainer/RootVBox/InfoLabel
 @onready var sim_day_button: Button = $RootScroll/MarginContainer/RootVBox/SimDayButton
+@onready var sim_week_button: Button = get_node_or_null("RootScroll/MarginContainer/RootVBox/SimButtonsHBox/SimWeekButton")
+@onready var sim_to_season_end_button: Button = get_node_or_null("RootScroll/MarginContainer/RootVBox/SimButtonsHBox/SimToSeasonEndButton")
 @onready var save_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/SaveButton
 @onready var load_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/LoadButton
 @onready var new_season_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/NewSeasonButton
@@ -82,9 +85,14 @@ func _ready() -> void:
 	title_label.text = "ストリート野球"
 	team_management_button.text = "チーム管理へ"
 	league_info_button.text = "リーグ情報へ"
+	roster_button.text = "選手一覧へ"
 	save_button.text = "セーブ"
 	load_button.text = "ロード"
 	new_season_button.text = "新シーズン開始"
+	if sim_week_button != null:
+		sim_week_button.text = "7日進める"
+	if sim_to_season_end_button != null:
+		sim_to_season_end_button.text = "シーズン最後まで"
 	save_status_label.text = "保存先: user://save_01.json"
 	season_status_title_label.text = "シーズン状況"
 	leaders_title_label.text = "リーグ個人成績"
@@ -119,8 +127,13 @@ func _ready() -> void:
 	bullpen_long_button.text = "ロング"
 
 	sim_day_button.pressed.connect(_on_sim_day_button_pressed)
+	if sim_week_button != null:
+		sim_week_button.pressed.connect(_on_sim_week_button_pressed)
+	if sim_to_season_end_button != null:
+		sim_to_season_end_button.pressed.connect(_on_sim_to_season_end_button_pressed)
 	team_management_button.pressed.connect(_on_team_management_button_pressed)
 	league_info_button.pressed.connect(_on_league_info_button_pressed)
+	roster_button.pressed.connect(_on_roster_button_pressed)
 	save_button.pressed.connect(_on_save_button_pressed)
 	load_button.pressed.connect(_on_load_button_pressed)
 	new_season_button.pressed.connect(_on_new_season_button_pressed)
@@ -250,6 +263,52 @@ func _on_sim_day_button_pressed() -> void:
 	else:
 		LeagueState.current_day = LeagueState.get_last_day() + 1
 
+	save_status_label.text = "%s を消化しました / 試合数: %d" % [LeagueState.get_date_label_for_day(simulated_day), games_today.size()]
+	_append_integrity_notes_to_status()
+
+	_refresh_view()
+
+func _on_sim_week_button_pressed() -> void:
+	_simulate_multiple_days(7)
+
+func _on_sim_to_season_end_button_pressed() -> void:
+	var remaining_days: int = LeagueState.get_last_day() - LeagueState.current_day + 1
+	_simulate_multiple_days(maxi(0, remaining_days))
+
+func _simulate_multiple_days(day_count: int) -> void:
+	if day_count <= 0 or LeagueState.current_day > LeagueState.get_last_day():
+		_refresh_sim_day_button()
+		return
+
+	var summary: Dictionary = LeagueState.simulate_days(day_count)
+	var simulated_days: int = int(summary.get("simulated_days", 0))
+	var played_games: int = int(summary.get("played_games", 0))
+	var last_simulated_day: int = int(summary.get("last_simulated_day", -1))
+	var start_date_label: String = str(summary.get("start_date_label", ""))
+	var end_date_label: String = str(summary.get("end_date_label", ""))
+	var calendar_days_passed: int = int(summary.get("calendar_days_passed", 0))
+
+	last_game_ids.clear()
+	selected_game_id = ""
+	if last_simulated_day > 0:
+		var latest_games: Array = LeagueState.get_games_for_day(last_simulated_day)
+		_store_recent_games(last_simulated_day, latest_games)
+
+	if simulated_days <= 0:
+		save_status_label.text = "これ以上進められる日程がありません"
+	else:
+		if start_date_label != "" and end_date_label != "":
+			save_status_label.text = "%s から %s まで進行 / 試合日: %d日 / 経過日数: %d日 / 消化試合数: %d" % [
+				start_date_label,
+				end_date_label,
+				simulated_days,
+				calendar_days_passed,
+				played_games
+			]
+		else:
+			save_status_label.text = "%d日進めました / 消化試合数: %d" % [simulated_days, played_games]
+
+	_append_integrity_notes_to_status()
 	_refresh_view()
 
 func _on_team_management_button_pressed() -> void:
@@ -257,6 +316,9 @@ func _on_team_management_button_pressed() -> void:
 
 func _on_league_info_button_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/LeagueInfo.tscn")
+
+func _on_roster_button_pressed() -> void:
+	get_tree().change_scene_to_file("res://scenes/RosterView.tscn")
 
 func _on_save_button_pressed() -> void:
 	var saved: bool = LeagueState.save_to_file()
@@ -280,6 +342,7 @@ func _on_load_button_pressed() -> void:
 	selected_rotation_index = -1
 	bullpen_edit_target = ""
 	save_status_label.text = "ロードしました: user://save_01.json"
+	_append_integrity_notes_to_status()
 	_refresh_view()
 
 func _on_new_season_button_pressed() -> void:
@@ -287,7 +350,7 @@ func _on_new_season_button_pressed() -> void:
 		save_status_label.text = "今のシーズンを最後まで進めてください"
 		return
 
-	LeagueState.start_new_season()
+	var offseason_report: Array[String] = LeagueState.start_new_season()
 	last_game_ids.clear()
 	selected_game_id = ""
 	lineup_edit_target = ""
@@ -295,12 +358,46 @@ func _on_new_season_button_pressed() -> void:
 	selected_rotation_index = -1
 	bullpen_edit_target = ""
 	save_status_label.text = "新シーズンを開始しました"
+	if not offseason_report.is_empty():
+		save_status_label.text += "\n" + offseason_report[0]
+	_append_integrity_notes_to_status()
 	_refresh_view()
+
+func _append_integrity_notes_to_status() -> void:
+	var base_text: String = save_status_label.text
+	if base_text.find("\n整形:") >= 0:
+		base_text = base_text.split("\n整形:")[0]
+	if base_text.find("\n監査:") >= 0:
+		base_text = base_text.split("\n監査:")[0]
+	save_status_label.text = base_text
+
+	var notes: Array[String] = LeagueState.get_latest_integrity_notes()
+	if not notes.is_empty():
+		save_status_label.text += "\n整形: " + " / ".join(notes)
+	var audit_lines: Array[String] = LeagueState.get_integrity_audit()
+	if audit_lines.size() == 1 and audit_lines[0] == "監査OK":
+		save_status_label.text += "\n監査: OK"
+	else:
+		save_status_label.text += "\n監査: " + " / ".join(audit_lines)
 
 func _refresh_season_status() -> void:
 	var season_finished: bool = LeagueState.current_day > LeagueState.get_last_day()
 	if not season_finished:
-		season_status_detail_label.text = "シーズン %d 進行中\n現在の日付: %s" % [LeagueState.season_year, LeagueState.get_current_date_label()]
+		var lines: Array[String] = []
+		lines.append("シーズン %d 進行中" % LeagueState.season_year)
+		lines.append("現在の日付: %s" % LeagueState.get_current_date_label())
+		if LeagueState.current_day == 1:
+			var offseason_report: Array[String] = LeagueState.get_last_offseason_report()
+			if not offseason_report.is_empty():
+				lines.append("")
+				lines.append("オフシーズン処理完了")
+				lines.append(offseason_report[0])
+			var roster_log: Array[String] = LeagueState.get_last_controlled_team_roster_log()
+			if not roster_log.is_empty():
+				lines.append("")
+				for roster_line in roster_log:
+					lines.append(roster_line)
+		season_status_detail_label.text = "\n".join(lines)
 		return
 
 	var sorted_teams: Array = LeagueState.get_teams_sorted_by_win_pct()
@@ -467,6 +564,10 @@ func _refresh_focus_team_summary() -> void:
 	])
 	lines.append("ファン人気: %d  予算: %d" % [int(focus_team.fan_support), int(focus_team.budget)])
 	lines.append("方針: %s" % _get_strategy_label(str(focus_team.strategy)))
+	if LeagueState.controlled_team_id == str(focus_team.id):
+		var finance_log: Array[String] = LeagueState.get_recent_finance_log()
+		if not finance_log.is_empty():
+			lines.append("直近収支: %s" % finance_log[0])
 
 	var next_starter_name: String = "未定"
 	if not focus_team.rotation_ids.is_empty():
@@ -1074,6 +1175,10 @@ func _refresh_detailed_log() -> void:
 func _refresh_sim_day_button() -> void:
 	var season_finished: bool = LeagueState.current_day > LeagueState.get_last_day()
 	sim_day_button.disabled = season_finished
+	if sim_week_button != null:
+		sim_week_button.disabled = season_finished
+	if sim_to_season_end_button != null:
+		sim_to_season_end_button.disabled = season_finished
 	new_season_button.disabled = not season_finished
 	if season_finished:
 		sim_day_button.text = "シーズン終了"

@@ -49,6 +49,10 @@ text = ""
 layout_mode = 2
 text = ""
 
+[node name="RosterViewButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+layout_mode = 2
+text = "選手一覧へ"
+
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
