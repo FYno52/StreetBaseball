@@ -6,9 +6,13 @@ extends Control
 @onready var save_buttons_hbox: HBoxContainer = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox
 @onready var save_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/SaveButton
 @onready var load_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/LoadButton
+@onready var new_season_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/NewSeasonButton
 @onready var save_status_label: Label = $RootScroll/MarginContainer/RootVBox/SaveStatusLabel
 @onready var season_status_title_label: Label = $RootScroll/MarginContainer/RootVBox/SeasonStatusTitleLabel
 @onready var season_status_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SeasonStatusDetailLabel
+@onready var leaders_title_label: Label = $RootScroll/MarginContainer/RootVBox/LeadersTitleLabel
+@onready var batting_leaders_label: Label = $RootScroll/MarginContainer/RootVBox/BattingLeadersLabel
+@onready var pitching_leaders_label: Label = $RootScroll/MarginContainer/RootVBox/PitchingLeadersLabel
 @onready var team_list_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/TeamListScroll/TeamListVBox
 @onready var selected_team_title_label: Label = $RootScroll/MarginContainer/RootVBox/SelectedTeamTitleLabel
 @onready var selected_team_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SelectedTeamDetailLabel
@@ -48,9 +52,13 @@ func _ready() -> void:
 	title_label.text = "ストリート野球"
 	save_button.text = "セーブ"
 	load_button.text = "ロード"
+	new_season_button.text = "新シーズン開始"
 	save_status_label.text = "保存データは user://save_01.json を使います"
 	season_status_title_label.text = "シーズン状況"
 	season_status_detail_label.text = "シーズン進行中です"
+	leaders_title_label.text = "リーグ個人成績"
+	batting_leaders_label.text = "打撃ランキングを集計中です"
+	pitching_leaders_label.text = "投手ランキングを集計中です"
 	selected_team_title_label.text = "チーム詳細"
 	selected_team_detail_label.text = "まだチームが選択されていません"
 	lineup_vs_r_title_label.text = "対右投手スタメン"
@@ -73,6 +81,7 @@ func _ready() -> void:
 	sim_day_button.pressed.connect(_on_sim_day_button_pressed)
 	save_button.pressed.connect(_on_save_button_pressed)
 	load_button.pressed.connect(_on_load_button_pressed)
+	new_season_button.pressed.connect(_on_new_season_button_pressed)
 	edit_vs_r_button.pressed.connect(_on_edit_mode_pressed.bind("vs_r"))
 	edit_vs_l_button.pressed.connect(_on_edit_mode_pressed.bind("vs_l"))
 	cancel_edit_button.pressed.connect(_on_cancel_edit_pressed)
@@ -105,6 +114,7 @@ func _refresh_view() -> void:
 		team_list_vbox.add_child(button)
 
 	_refresh_season_status()
+	_refresh_league_leaders()
 	_refresh_selected_team_detail()
 	_refresh_selected_team_lineups()
 	_refresh_lineup_editor()
@@ -157,10 +167,25 @@ func _on_load_button_pressed() -> void:
 	save_status_label.text = "ロードしました: user://save_01.json"
 	_refresh_view()
 
+func _on_new_season_button_pressed() -> void:
+	if LeagueState.current_day <= LeagueState.get_last_day():
+		save_status_label.text = "シーズン終了後に新シーズンを開始できます"
+		return
+
+	LeagueState.start_new_season()
+	last_game_ids.clear()
+	selected_game_id = ""
+	lineup_edit_target = ""
+	selected_lineup_index = -1
+	selected_rotation_index = -1
+	save_status_label.text = "新シーズンを開始しました"
+	_refresh_view()
+
 func _refresh_season_status() -> void:
 	var season_finished: bool = LeagueState.current_day > LeagueState.get_last_day()
 	if not season_finished:
-		season_status_detail_label.text = "シーズン進行中: Day %d / %d\n1日消化でリーグが進みます" % [
+		season_status_detail_label.text = "シーズン %d 進行中: Day %d / %d\n1日消化でリーグが進みます" % [
+			LeagueState.season_year,
 			LeagueState.current_day,
 			LeagueState.get_last_day()
 		]
@@ -176,7 +201,8 @@ func _refresh_season_status() -> void:
 	var best_offense = _find_team_by_runs_for(true)
 	var best_defense = _find_team_by_runs_against(true)
 
-	season_status_detail_label.text = "シーズン終了\n優勝: %s\n最下位: %s\n最多得点: %s (%d)\n最少失点: %s (%d)\n総試合日数: %d" % [
+	season_status_detail_label.text = "シーズン %d 終了\n優勝: %s\n最下位: %s\n最多得点: %s (%d)\n最少失点: %s (%d)\n総試合日数: %d" % [
+		LeagueState.season_year,
 		champion.name,
 		last_place.name,
 		best_offense.name if best_offense != null else "-",
@@ -219,6 +245,48 @@ func _find_team_by_runs_against(lowest: bool):
 		elif not lowest and team_runs > best_runs:
 			best_team = team
 	return best_team
+
+func _refresh_league_leaders() -> void:
+	var batting: Dictionary = LeagueState.get_league_batting_leaders(5)
+	var pitching: Dictionary = LeagueState.get_league_pitching_leaders(5)
+
+	var batting_lines: Array[String] = ["打率"]
+	for i in range(batting.get("avg", []).size()):
+		var player = batting["avg"][i]
+		batting_lines.append("%d. %s  %.3f" % [i + 1, player.full_name, player.get_batting_average()])
+
+	batting_lines.append("")
+	batting_lines.append("本塁打")
+	for i in range(batting.get("hr", []).size()):
+		var player = batting["hr"][i]
+		batting_lines.append("%d. %s  %d" % [i + 1, player.full_name, int(player.batting_stats["hr"])])
+
+	batting_lines.append("")
+	batting_lines.append("打点")
+	for i in range(batting.get("rbi", []).size()):
+		var player = batting["rbi"][i]
+		batting_lines.append("%d. %s  %d" % [i + 1, player.full_name, int(player.batting_stats["rbi"])])
+
+	batting_leaders_label.text = "\n".join(batting_lines)
+
+	var pitching_lines: Array[String] = ["勝利"]
+	for i in range(pitching.get("wins", []).size()):
+		var player = pitching["wins"][i]
+		pitching_lines.append("%d. %s  %d" % [i + 1, player.full_name, int(player.pitching_stats["wins"])])
+
+	pitching_lines.append("")
+	pitching_lines.append("セーブ")
+	for i in range(pitching.get("saves", []).size()):
+		var player = pitching["saves"][i]
+		pitching_lines.append("%d. %s  %d" % [i + 1, player.full_name, int(player.pitching_stats["saves"])])
+
+	pitching_lines.append("")
+	pitching_lines.append("防御率")
+	for i in range(pitching.get("era", []).size()):
+		var player = pitching["era"][i]
+		pitching_lines.append("%d. %s  %.2f" % [i + 1, player.full_name, player.get_era()])
+
+	pitching_leaders_label.text = "\n".join(pitching_lines)
 
 func _on_team_button_pressed(team_id: String) -> void:
 	selected_team_id = team_id
@@ -613,6 +681,7 @@ func _refresh_detailed_log() -> void:
 func _refresh_sim_day_button() -> void:
 	var season_finished: bool = LeagueState.current_day > LeagueState.get_last_day()
 	sim_day_button.disabled = season_finished
+	new_season_button.disabled = not season_finished
 	if season_finished:
 		sim_day_button.text = "シーズン終了"
 	else:

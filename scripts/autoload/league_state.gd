@@ -47,6 +47,24 @@ func new_game() -> void:
 
 	_generate_schedule()
 
+func start_new_season() -> void:
+	season_year += 1
+	current_day = 1
+
+	for team_id in teams.keys():
+		var team = teams[team_id]
+		team.standings["wins"] = 0
+		team.standings["losses"] = 0
+		team.standings["draws"] = 0
+		team.standings["runs_for"] = 0
+		team.standings["runs_against"] = 0
+
+	for player_id in players.keys():
+		var player = players[player_id]
+		player.reset_season_stats()
+
+	_generate_schedule()
+
 func _generate_schedule() -> void:
 	schedule.clear()
 
@@ -257,6 +275,86 @@ func get_team_batters_sorted_by_avg(team_id: String) -> Array:
 	)
 
 	return result
+
+func get_league_batting_leaders(limit: int = 5) -> Dictionary:
+	var batters: Array = []
+	for player_id in players.keys():
+		var player = players[player_id]
+		if player == null or player.is_pitcher():
+			continue
+		batters.append(player)
+
+	var avg_leaders: Array = batters.duplicate()
+	avg_leaders.sort_custom(func(a, b):
+		var a_avg: float = a.get_batting_average()
+		var b_avg: float = b.get_batting_average()
+		if is_equal_approx(a_avg, b_avg):
+			return int(a.batting_stats["h"]) > int(b.batting_stats["h"])
+		return a_avg > b_avg
+	)
+
+	var hr_leaders: Array = batters.duplicate()
+	hr_leaders.sort_custom(func(a, b):
+		if int(a.batting_stats["hr"]) == int(b.batting_stats["hr"]):
+			return float(a.get_batting_average()) > float(b.get_batting_average())
+		return int(a.batting_stats["hr"]) > int(b.batting_stats["hr"])
+	)
+
+	var rbi_leaders: Array = batters.duplicate()
+	rbi_leaders.sort_custom(func(a, b):
+		if int(a.batting_stats["rbi"]) == int(b.batting_stats["rbi"]):
+			return int(a.batting_stats["h"]) > int(b.batting_stats["h"])
+		return int(a.batting_stats["rbi"]) > int(b.batting_stats["rbi"])
+	)
+
+	return {
+		"avg": avg_leaders.slice(0, mini(limit, avg_leaders.size())),
+		"hr": hr_leaders.slice(0, mini(limit, hr_leaders.size())),
+		"rbi": rbi_leaders.slice(0, mini(limit, rbi_leaders.size()))
+	}
+
+func get_league_pitching_leaders(limit: int = 5) -> Dictionary:
+	var pitchers: Array = []
+	for player_id in players.keys():
+		var player = players[player_id]
+		if player == null or not player.is_pitcher():
+			continue
+		pitchers.append(player)
+
+	var win_leaders: Array = pitchers.duplicate()
+	win_leaders.sort_custom(func(a, b):
+		if int(a.pitching_stats["wins"]) == int(b.pitching_stats["wins"]):
+			return int(a.pitching_stats["so"]) > int(b.pitching_stats["so"])
+		return int(a.pitching_stats["wins"]) > int(b.pitching_stats["wins"])
+	)
+
+	var save_leaders: Array = pitchers.duplicate()
+	save_leaders.sort_custom(func(a, b):
+		if int(a.pitching_stats["saves"]) == int(b.pitching_stats["saves"]):
+			return int(a.pitching_stats["holds"]) > int(b.pitching_stats["holds"])
+		return int(a.pitching_stats["saves"]) > int(b.pitching_stats["saves"])
+	)
+
+	var era_candidates: Array = []
+	for pitcher in pitchers:
+		if int(pitcher.pitching_stats["outs"]) >= 9:
+			era_candidates.append(pitcher)
+	if era_candidates.is_empty():
+		era_candidates = pitchers.duplicate()
+
+	era_candidates.sort_custom(func(a, b):
+		var a_era: float = a.get_era()
+		var b_era: float = b.get_era()
+		if is_equal_approx(a_era, b_era):
+			return int(a.pitching_stats["outs"]) > int(b.pitching_stats["outs"])
+		return a_era < b_era
+	)
+
+	return {
+		"wins": win_leaders.slice(0, mini(limit, win_leaders.size())),
+		"saves": save_leaders.slice(0, mini(limit, save_leaders.size())),
+		"era": era_candidates.slice(0, mini(limit, era_candidates.size()))
+	}
 	
 func get_team_pitchers_sorted_by_era(team_id: String) -> Array:
 	var team = get_team(team_id)

@@ -53,6 +53,11 @@ text = "Save"
 layout_mode = 2
 text = "Load"
 
+[node name="NewSeasonButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SaveButtonsHBox" unique_id=354081826]
+layout_mode = 2
+disabled = true
+text = "Next Season"
+
 [node name="SaveStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1729330945]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
@@ -69,6 +74,24 @@ custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Season details"
+autowrap_mode = 3
+
+[node name="LeadersTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+text = "League Leaders"
+
+[node name="BattingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Batting leaders"
+autowrap_mode = 3
+
+[node name="PitchingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Pitching leaders"
 autowrap_mode = 3
 
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=977566212]
