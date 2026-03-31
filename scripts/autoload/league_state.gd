@@ -4,8 +4,12 @@ const TEAM_DATA_SCRIPT = preload("res://scripts/data/team_data.gd")
 const PLAYER_DATA_SCRIPT = preload("res://scripts/data/player_data.gd")
 const GAME_DATA_SCRIPT = preload("res://scripts/data/game_data.gd")
 const START_SEASON_YEAR := 2026
+const CALENDAR_START_MONTH := 1
+const CALENDAR_START_DAY := 1
 const SEASON_START_MONTH := 3
 const SEASON_START_DAY := 27
+const REGULAR_SERIES_CYCLE_COUNT := 9
+const EXTRA_SINGLE_GAME_CYCLE_COUNT := 1
 const WEEKDAY_NAMES := ["日", "月", "火", "水", "木", "金", "土"]
 const DESIRED_FIELDER_SLOTS: Array[String] = ["C", "C", "1B", "1B", "2B", "2B", "3B", "3B", "SS", "SS", "LF", "CF", "RF", "DH", "UT"]
 
@@ -122,20 +126,28 @@ func _generate_schedule() -> void:
 	for team_info in team_master:
 		ids.append(str(team_info["id"]))
 
-	var series_rounds: Array = _build_series_rounds(ids)
-	var series_date_blocks: Array = _build_series_date_blocks(series_rounds.size())
-	var day: int = 1
+	var schedule_blocks: Array = _build_schedule_blocks(ids)
+	var series_date_blocks: Array = _build_series_date_blocks(schedule_blocks)
 	var game_index: int = 1
 
-	for round_index in range(series_rounds.size()):
-		var pairings: Array = series_rounds[round_index]
+	for round_index in range(schedule_blocks.size()):
+		var block_data: Dictionary = schedule_blocks[round_index]
+		var pairings: Array = block_data.get("pairings", [])
 		var date_block: Array = series_date_blocks[round_index]
 		for slot in date_block:
+			var calendar_day: int = _calc_calendar_day_span(
+				season_year,
+				CALENDAR_START_MONTH,
+				CALENDAR_START_DAY,
+				int(slot["year"]),
+				int(slot["month"]),
+				int(slot["day"])
+			) + 1
 			for pairing in pairings:
 				var game: GameData = GAME_DATA_SCRIPT.new()
 				game.id = "G_%03d" % game_index
-				game.day = day
-				game.season_year = season_year
+				game.day = calendar_day
+				game.season_year = int(slot["year"])
 				game.month = int(slot["month"])
 				game.day_of_month = int(slot["day"])
 				game.weekday_index = int(slot["weekday_index"])
@@ -145,15 +157,14 @@ func _generate_schedule() -> void:
 				game.home_team_id = str(pairing["home_team_id"])
 				schedule.append(game)
 				game_index += 1
-			day += 1
 
-func _build_series_rounds(team_ids: Array[String]) -> Array:
-	var rounds: Array = []
+func _build_schedule_blocks(team_ids: Array[String]) -> Array:
+	var blocks: Array = []
 	if team_ids.size() < 2:
-		return rounds
+		return blocks
 
 	var base_rounds: Array = _build_round_robin_rounds(team_ids)
-	for cycle in range(4):
+	for cycle in range(REGULAR_SERIES_CYCLE_COUNT):
 		for round_index in range(base_rounds.size()):
 			var pairings: Array = []
 			var base_round: Array = base_rounds[round_index]
@@ -168,8 +179,32 @@ func _build_series_rounds(team_ids: Array[String]) -> Array:
 					"home_team_id": home_team_id,
 					"away_team_id": away_team_id
 				})
-			rounds.append(pairings)
-	return rounds
+			blocks.append({
+				"games_per_matchup": 3,
+				"pairings": pairings
+			})
+
+	for extra_cycle in range(EXTRA_SINGLE_GAME_CYCLE_COUNT):
+		for round_index in range(base_rounds.size()):
+			var single_pairings: Array = []
+			var base_round: Array = base_rounds[round_index]
+			for matchup in base_round:
+				var home_team_id: String = str(matchup["home_team_id"])
+				var away_team_id: String = str(matchup["away_team_id"])
+				if (REGULAR_SERIES_CYCLE_COUNT + extra_cycle) % 2 == 1:
+					var temp_id: String = home_team_id
+					home_team_id = away_team_id
+					away_team_id = temp_id
+				single_pairings.append({
+					"home_team_id": home_team_id,
+					"away_team_id": away_team_id
+				})
+			blocks.append({
+				"games_per_matchup": 1,
+				"pairings": single_pairings
+			})
+
+	return blocks
 
 func _build_round_robin_rounds(team_ids: Array[String]) -> Array:
 	var rounds: Array = []
@@ -209,42 +244,57 @@ func _build_round_robin_rounds(team_ids: Array[String]) -> Array:
 
 	return rounds
 
-func _build_series_date_blocks(block_count: int) -> Array:
+func _build_series_date_blocks(schedule_blocks: Array) -> Array:
 	var result: Array = []
 	var year: int = season_year
 	var month: int = SEASON_START_MONTH
 	var day_of_month: int = SEASON_START_DAY
 
-	while result.size() < block_count:
-		var weekday_index: int = _get_weekday_index(year, month, day_of_month)
-		if weekday_index == 2 or weekday_index == 5:
-			var block: Array = []
-			var block_year: int = year
-			var block_month: int = month
-			var block_day: int = day_of_month
-			for _index in range(3):
-				var block_weekday: int = _get_weekday_index(block_year, block_month, block_day)
-				block.append({
-					"month": block_month,
-					"day": block_day,
-					"weekday_index": block_weekday,
-					"weekday_name": WEEKDAY_NAMES[block_weekday],
-					"date_label": _build_date_label(block_year, block_month, block_day, block_weekday)
-				})
-				var next_date: Dictionary = _advance_date(block_year, block_month, block_day)
-				block_year = int(next_date["year"])
-				block_month = int(next_date["month"])
-				block_day = int(next_date["day"])
-			result.append(block)
-			year = block_year
-			month = block_month
-			day_of_month = block_day
-			continue
+	for block_data in schedule_blocks:
+		var games_per_matchup: int = int(block_data.get("games_per_matchup", 3))
+		var block: Array = []
 
-		var next_regular_date: Dictionary = _advance_date(year, month, day_of_month)
-		year = int(next_regular_date["year"])
-		month = int(next_regular_date["month"])
-		day_of_month = int(next_regular_date["day"])
+		if games_per_matchup >= 3:
+			while true:
+				var weekday_index: int = _get_weekday_index(year, month, day_of_month)
+				if weekday_index == 2 or weekday_index == 5:
+					break
+				var next_regular_date: Dictionary = _advance_date(year, month, day_of_month)
+				year = int(next_regular_date["year"])
+				month = int(next_regular_date["month"])
+				day_of_month = int(next_regular_date["day"])
+		else:
+			while true:
+				var single_weekday_index: int = _get_weekday_index(year, month, day_of_month)
+				if single_weekday_index != 1:
+					break
+				var next_single_date: Dictionary = _advance_date(year, month, day_of_month)
+				year = int(next_single_date["year"])
+				month = int(next_single_date["month"])
+				day_of_month = int(next_single_date["day"])
+
+		var block_year: int = year
+		var block_month: int = month
+		var block_day: int = day_of_month
+		for _index in range(games_per_matchup):
+			var block_weekday: int = _get_weekday_index(block_year, block_month, block_day)
+			block.append({
+				"year": block_year,
+				"month": block_month,
+				"day": block_day,
+				"weekday_index": block_weekday,
+				"weekday_name": WEEKDAY_NAMES[block_weekday],
+				"date_label": _build_date_label(block_year, block_month, block_day, block_weekday)
+			})
+			var next_date: Dictionary = _advance_date(block_year, block_month, block_day)
+			block_year = int(next_date["year"])
+			block_month = int(next_date["month"])
+			block_day = int(next_date["day"])
+
+		result.append(block)
+		year = block_year
+		month = block_month
+		day_of_month = block_day
 
 	return result
 
@@ -312,41 +362,41 @@ func get_games_for_day(day: int) -> Array:
 	return result
 
 func get_date_label_for_day(day: int) -> String:
-	for game in schedule:
-		if int(game.day) == day:
-			return str(game.date_label)
-	return "%04d-%02d-%02d" % [season_year, SEASON_START_MONTH, SEASON_START_DAY]
+	return str(get_date_info_for_day(day).get("date_label", ""))
 
 func get_date_info_for_day(day: int) -> Dictionary:
-	for game in schedule:
-		if int(game.day) == day:
-			return {
-				"year": int(game.season_year),
-				"month": int(game.month),
-				"day": int(game.day_of_month),
-				"weekday_index": int(game.weekday_index),
-				"weekday_name": str(game.weekday_name),
-				"date_label": str(game.date_label)
-			}
+	var target_day: int = maxi(1, day)
+	var year: int = season_year
+	var month: int = CALENDAR_START_MONTH
+	var day_of_month: int = CALENDAR_START_DAY
+
+	for _index in range(target_day - 1):
+		var next_date: Dictionary = _advance_date(year, month, day_of_month)
+		year = int(next_date["year"])
+		month = int(next_date["month"])
+		day_of_month = int(next_date["day"])
+
+	var weekday_index: int = _get_weekday_index(year, month, day_of_month)
 	return {
-		"year": season_year,
-		"month": SEASON_START_MONTH,
-		"day": SEASON_START_DAY,
-		"weekday_index": _get_weekday_index(season_year, SEASON_START_MONTH, SEASON_START_DAY),
-		"weekday_name": WEEKDAY_NAMES[_get_weekday_index(season_year, SEASON_START_MONTH, SEASON_START_DAY)],
-		"date_label": "%04d-%02d-%02d(%s)" % [season_year, SEASON_START_MONTH, SEASON_START_DAY, WEEKDAY_NAMES[_get_weekday_index(season_year, SEASON_START_MONTH, SEASON_START_DAY)]]
+		"year": year,
+		"month": month,
+		"day": day_of_month,
+		"weekday_index": weekday_index,
+		"weekday_name": WEEKDAY_NAMES[weekday_index],
+		"date_label": _build_date_label(year, month, day_of_month, weekday_index)
 	}
 
 func get_current_date_label() -> String:
-	var target_day: int = current_day
-	if current_day > get_last_day():
-		target_day = get_last_day()
-	if target_day <= 0:
-		target_day = 1
-	return get_date_label_for_day(target_day)
+	return get_date_label_for_day(current_day)
 
 func advance_day() -> void:
 	current_day += 1
+
+func complete_day_transition() -> Array[String]:
+	if current_day < get_last_day():
+		advance_day()
+		return []
+	return start_new_season()
 
 func all_team_ids() -> Array[String]:
 	var result: Array[String] = []
@@ -718,13 +768,28 @@ func get_teams_sorted_by_win_pct() -> Array:
 	return result
 	
 func get_last_day() -> int:
-	var last_day: int = 1
+	return 366 if _is_leap_year(season_year) else 365
 
+func get_first_game_day() -> int:
+	var first_day: int = get_last_day()
 	for game in schedule:
-		if int(game.day) > last_day:
-			last_day = int(game.day)
+		first_day = mini(first_day, int(game.day))
+	return first_day
 
-	return last_day
+func get_final_game_day() -> int:
+	var final_day: int = 1
+	for game in schedule:
+		final_day = maxi(final_day, int(game.day))
+	return final_day
+
+func get_season_phase() -> String:
+	var first_game_day: int = get_first_game_day()
+	var final_game_day: int = get_final_game_day()
+	if current_day < first_game_day:
+		return "preseason"
+	if current_day <= final_game_day:
+		return "regular"
+	return "offseason"
 
 func _run_offseason(previous_year: int, next_year: int) -> Array[String]:
 	var lines: Array[String] = []
@@ -1114,12 +1179,11 @@ func _rebuild_team_competitive_structures(team: TeamData) -> void:
 	normalize_team_bullpen(team)
 
 func simulate_to_end_of_season() -> void:
-	var last_day: int = get_last_day()
+	var final_game_day: int = get_final_game_day()
 
-	while current_day <= last_day:
+	while current_day <= final_game_day:
 		simulate_current_day()
-
-		if current_day < last_day:
+		if current_day < final_game_day:
 			advance_day()
 		else:
 			break
@@ -1128,10 +1192,10 @@ func simulate_days(day_count: int) -> Dictionary:
 	var simulated_days: int = 0
 	var played_games: int = 0
 	var last_simulated_day: int = -1
-	var start_day: int = current_day
 	var start_date_label: String = ""
 	var end_date_label: String = ""
 	var calendar_days_passed: int = 0
+	var end_info: Dictionary = {}
 
 	if day_count <= 0:
 		return {
@@ -1144,24 +1208,20 @@ func simulate_days(day_count: int) -> Dictionary:
 			"season_finished": current_day > get_last_day()
 		}
 
-	start_date_label = get_date_label_for_day(start_day)
+	start_date_label = get_current_date_label()
+	var start_info: Dictionary = get_date_info_for_day(current_day)
 
-	while simulated_days < day_count and current_day <= get_last_day():
+	while simulated_days < day_count:
 		last_simulated_day = current_day
+		end_info = get_date_info_for_day(current_day)
+		end_date_label = str(end_info.get("date_label", ""))
 		var games_today: Array = simulate_current_day()
 		played_games += games_today.size()
 		simulated_days += 1
 
-		if current_day < get_last_day():
-			advance_day()
-		else:
-			current_day = get_last_day() + 1
-			break
+		complete_day_transition()
 
-	if last_simulated_day > 0:
-		end_date_label = get_date_label_for_day(last_simulated_day)
-		var start_info: Dictionary = get_date_info_for_day(start_day)
-		var end_info: Dictionary = get_date_info_for_day(last_simulated_day)
+	if last_simulated_day > 0 and not end_info.is_empty():
 		calendar_days_passed = _calc_calendar_day_span(
 			int(start_info["year"]),
 			int(start_info["month"]),
@@ -1178,7 +1238,7 @@ func simulate_days(day_count: int) -> Dictionary:
 		"start_date_label": start_date_label,
 		"end_date_label": end_date_label,
 		"calendar_days_passed": calendar_days_passed,
-		"season_finished": current_day > get_last_day()
+		"season_finished": false
 	}
 
 func _calc_calendar_day_span(start_year: int, start_month: int, start_day_of_month: int, end_year: int, end_month: int, end_day_of_month: int) -> int:
