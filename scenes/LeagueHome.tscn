@@ -37,17 +37,15 @@ theme_override_constants/separation = 12
 layout_mode = 2
 text = "ストリート野球"
 
-[node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1412835132]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="TeamManagementButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+[node name="TeamManagementButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox" unique_id=169068450]
 layout_mode = 2
-text = ""
 
-[node name="LeagueInfoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+[node name="LeagueInfoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox" unique_id=36964570]
 layout_mode = 2
-text = ""
 
 [node name="SimDayButton" type="Button" parent="RootScroll/MarginContainer/RootVBox" unique_id=181034300]
 layout_mode = 2
@@ -88,77 +86,69 @@ size_flags_horizontal = 3
 text = "シーズン詳細"
 autowrap_mode = 3
 
-[node name="LeadersTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="LeadersTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1933565135]
 layout_mode = 2
 text = "リーグ個人成績"
 
-[node name="BattingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="BattingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1500405676]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "打撃ランキング"
 autowrap_mode = 3
 
-[node name="PitchingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="PitchingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1987552606]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "投手ランキング"
 autowrap_mode = 3
 
-[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1145562421]
 layout_mode = 2
 text = "ストリートニュース"
 
-[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1811585404]
 custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "まだイベントはありません"
 autowrap_mode = 3
 
-[node name="DigestTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="DigestTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=154753980]
 layout_mode = 2
-text = ""
 
-[node name="DigestDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="DigestDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=927218727]
 custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_horizontal = 3
-text = ""
 autowrap_mode = 3
 
-[node name="FocusTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="FocusTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1682173533]
 layout_mode = 2
-text = ""
 
-[node name="FocusTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="FocusTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1392245870]
 custom_minimum_size = Vector2(0, 112)
 layout_mode = 2
 size_flags_horizontal = 3
-text = ""
 autowrap_mode = 3
 
-[node name="TodayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="TodayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1654827853]
 layout_mode = 2
-text = ""
 
-[node name="TodayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="TodayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=599339737]
 custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_horizontal = 3
-text = ""
 autowrap_mode = 3
 
-[node name="YesterdayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="YesterdayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1382465170]
 layout_mode = 2
-text = ""
 
-[node name="YesterdayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="YesterdayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=987433906]
 custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_horizontal = 3
-text = ""
 autowrap_mode = 3
 
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=977566212]
@@ -189,38 +179,38 @@ size_flags_horizontal = 3
 text = "まだチームが選択されていません"
 autowrap_mode = 3
 
-[node name="StrategyTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="StrategyTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1214308267]
 layout_mode = 2
 text = "チーム方針"
 
-[node name="StrategyStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="StrategyStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1131013616]
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "チームを選ぶと方針を変更できます"
 autowrap_mode = 3
 
-[node name="StrategyButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="StrategyButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=568636203]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="StrategyBalancedButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+[node name="StrategyBalancedButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=1591878393]
 layout_mode = 2
 text = "標準"
 
-[node name="StrategyPowerButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+[node name="StrategyPowerButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=1654037342]
 layout_mode = 2
 text = "強打"
 
-[node name="StrategySpeedButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+[node name="StrategySpeedButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=6787698]
 layout_mode = 2
 text = "機動力"
 
-[node name="StrategyDefenseButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+[node name="StrategyDefenseButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=73006166]
 layout_mode = 2
 text = "守備重視"
 
-[node name="StrategyPitchingButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox"]
+[node name="StrategyPitchingButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=1829676026]
 layout_mode = 2
 text = "投手重視"
 

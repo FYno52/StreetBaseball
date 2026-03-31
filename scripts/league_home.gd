@@ -76,7 +76,7 @@ func _ready() -> void:
 	if LeagueState.teams.is_empty() or LeagueState.schedule.is_empty():
 		LeagueState.new_game()
 	if LeagueState.controlled_team_id == "":
-		get_tree().change_scene_to_file("res://scenes/TeamSelect.tscn")
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/TeamSelect.tscn")
 		return
 
 	title_label.text = "ストリート野球"
@@ -146,7 +146,7 @@ func _refresh_view() -> void:
 	var controlled_team: TeamData = LeagueState.get_controlled_team()
 	if controlled_team != null:
 		controlled_team_text = controlled_team.name
-	info_label.text = "現在日: %d\n担当球団: %s\n今日はここから 1日消化 を進めるか、チーム管理とリーグ情報へ移動できます。" % [LeagueState.current_day, controlled_team_text]
+	info_label.text = "日付: %s\n担当球団: %s\n今日はここから 1日消化 を進めるか、チーム管理とリーグ情報へ移動できます。" % [LeagueState.get_current_date_label(), controlled_team_text]
 
 	for child in team_list_vbox.get_children():
 		child.queue_free()
@@ -300,7 +300,7 @@ func _on_new_season_button_pressed() -> void:
 func _refresh_season_status() -> void:
 	var season_finished: bool = LeagueState.current_day > LeagueState.get_last_day()
 	if not season_finished:
-		season_status_detail_label.text = "シーズン %d 進行中\n%d日目 / %d日" % [LeagueState.season_year, LeagueState.current_day, LeagueState.get_last_day()]
+		season_status_detail_label.text = "シーズン %d 進行中\n現在の日付: %s" % [LeagueState.season_year, LeagueState.get_current_date_label()]
 		return
 
 	var sorted_teams: Array = LeagueState.get_teams_sorted_by_win_pct()
@@ -514,22 +514,33 @@ func _refresh_today_summary() -> void:
 		return
 
 	var lines: Array[String] = []
-	lines.append("%d日目の予定: %d試合" % [LeagueState.current_day, games_today.size()])
+	lines.append("%s の予定: %d試合" % [LeagueState.get_current_date_label(), games_today.size()])
 
 	var focus_game: GameData = null
 	var focus_value: float = -1.0
+	var controlled_game: GameData = null
+	var controlled_team_id: String = LeagueState.controlled_team_id
 	for game in games_today:
 		var away_team: TeamData = LeagueState.get_team(str(game.away_team_id))
 		var home_team: TeamData = LeagueState.get_team(str(game.home_team_id))
 		var away_name: String = away_team.name if away_team != null else str(game.away_team_id)
 		var home_name: String = home_team.name if home_team != null else str(game.home_team_id)
 		lines.append("- %s vs %s" % [away_name, home_name])
+		if controlled_team_id != "" and (str(game.away_team_id) == controlled_team_id or str(game.home_team_id) == controlled_team_id):
+			controlled_game = game
 
 		if away_team != null and home_team != null:
 			var matchup_value: float = SimulationEngine.get_team_total_strength(away_team) + SimulationEngine.get_team_total_strength(home_team)
 			if matchup_value > focus_value:
 				focus_value = matchup_value
 				focus_game = game
+
+	if controlled_game != null:
+		lines.append("")
+		lines.append("担当球団カード: %s vs %s" % [
+			_get_team_name(str(controlled_game.away_team_id)),
+			_get_team_name(str(controlled_game.home_team_id))
+		])
 
 	if focus_game != null:
 		var focus_away: TeamData = LeagueState.get_team(str(focus_game.away_team_id))
@@ -559,19 +570,32 @@ func _refresh_yesterday_summary() -> void:
 		return
 
 	var lines: Array[String] = []
-	lines.append("%d日目の結果" % target_day)
+	lines.append("%s の結果" % LeagueState.get_date_label_for_day(target_day))
 
 	var closest_game: GameData = null
 	var closest_margin: int = 999
+	var controlled_game: GameData = null
+	var controlled_team_id: String = LeagueState.controlled_team_id
 	for game in games_yesterday:
 		var away_name: String = _get_team_name(str(game.away_team_id))
 		var home_name: String = _get_team_name(str(game.home_team_id))
 		lines.append("- %s %d - %d %s" % [away_name, int(game.away_score), int(game.home_score), home_name])
+		if controlled_team_id != "" and (str(game.away_team_id) == controlled_team_id or str(game.home_team_id) == controlled_team_id):
+			controlled_game = game
 
 		var margin: int = abs(int(game.away_score) - int(game.home_score))
 		if margin < closest_margin:
 			closest_margin = margin
 			closest_game = game
+
+	if controlled_game != null:
+		lines.append("")
+		lines.append("担当球団の結果: %s %d - %d %s" % [
+			_get_team_name(str(controlled_game.away_team_id)),
+			int(controlled_game.away_score),
+			int(controlled_game.home_score),
+			_get_team_name(str(controlled_game.home_team_id))
+		])
 
 	if closest_game != null:
 		lines.append("")
@@ -592,7 +616,7 @@ func _on_team_button_pressed(team_id: String) -> void:
 
 	var team = LeagueState.get_team(team_id)
 	if team != null:
-			info_label.text = "現在日: %d / 選択チーム: %s" % [LeagueState.current_day, team.name]
+			info_label.text = "日付: %s / 選択チーム: %s" % [LeagueState.get_current_date_label(), team.name]
 
 	_refresh_selected_team_detail()
 	_refresh_strategy_editor()
@@ -1017,7 +1041,7 @@ func _refresh_recent_games_list() -> void:
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.toggle_mode = true
 		button.button_pressed = selected_game_id == game_id
-		button.text = "%d日目  %s %d - %d %s" % [int(game.day), away_name, int(game.away_score), int(game.home_score), home_name]
+		button.text = "%s  %s %d - %d %s" % [str(game.date_label), away_name, int(game.away_score), int(game.home_score), home_name]
 		button.pressed.connect(_on_recent_game_pressed.bind(game_id))
 		recent_games_vbox.add_child(button)
 

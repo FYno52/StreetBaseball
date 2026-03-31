@@ -3,6 +3,12 @@ extends RefCounted
 
 var id: String = ""
 var day: int = 1
+var season_year: int = 2026
+var month: int = 1
+var day_of_month: int = 1
+var weekday_index: int = 0
+var weekday_name: String = ""
+var date_label: String = ""
 var away_team_id: String = ""
 var home_team_id: String = ""
 
@@ -20,6 +26,12 @@ func to_dict() -> Dictionary:
 	return {
 		"id": id,
 		"day": day,
+		"season_year": season_year,
+		"month": month,
+		"day_of_month": day_of_month,
+		"weekday_index": weekday_index,
+		"weekday_name": weekday_name,
+		"date_label": date_label,
 		"away_team_id": away_team_id,
 		"home_team_id": home_team_id,
 		"played": played,
@@ -36,6 +48,12 @@ static func from_dict(d: Dictionary):
 
 	g.id = str(d.get("id", ""))
 	g.day = int(d.get("day", 1))
+	g.season_year = int(d.get("season_year", 2026))
+	g.month = int(d.get("month", 1))
+	g.day_of_month = int(d.get("day_of_month", 1))
+	g.weekday_index = int(d.get("weekday_index", 0))
+	g.weekday_name = str(d.get("weekday_name", ""))
+	g.date_label = str(d.get("date_label", ""))
 	g.away_team_id = str(d.get("away_team_id", ""))
 	g.home_team_id = str(d.get("home_team_id", ""))
 	g.played = bool(d.get("played", false))

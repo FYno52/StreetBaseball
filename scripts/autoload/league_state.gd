@@ -3,8 +3,12 @@
 const TEAM_DATA_SCRIPT = preload("res://scripts/data/team_data.gd")
 const PLAYER_DATA_SCRIPT = preload("res://scripts/data/player_data.gd")
 const GAME_DATA_SCRIPT = preload("res://scripts/data/game_data.gd")
+const START_SEASON_YEAR := 2026
+const SEASON_START_MONTH := 3
+const SEASON_START_DAY := 27
+const WEEKDAY_NAMES := ["日", "月", "火", "水", "木", "金", "土"]
 
-var season_year: int = 1
+var season_year: int = START_SEASON_YEAR
 var current_day: int = 1
 var controlled_team_id: String = ""
 
@@ -29,7 +33,7 @@ var team_master: Array[Dictionary] = [
 ]
 
 func reset() -> void:
-	season_year = 1
+	season_year = START_SEASON_YEAR
 	current_day = 1
 	controlled_team_id = ""
 	teams.clear()
@@ -92,33 +96,175 @@ func _generate_schedule() -> void:
 	for team_info in team_master:
 		ids.append(str(team_info["id"]))
 
+	var series_rounds: Array = _build_series_rounds(ids)
+	var series_date_blocks: Array = _build_series_date_blocks(series_rounds.size())
 	var day: int = 1
 	var game_index: int = 1
 
-	# 各カード12試合（6 home / 6 away）の簡易日程
-	for i in range(ids.size()):
-		for j in range(i + 1, ids.size()):
-			var a: String = ids[i]
-			var b: String = ids[j]
-
-			for k in range(6):
-				var g1 = GAME_DATA_SCRIPT.new()
-				g1.id = "G_%03d" % game_index
-				g1.day = day
-				g1.away_team_id = a
-				g1.home_team_id = b
-				schedule.append(g1)
+	for round_index in range(series_rounds.size()):
+		var pairings: Array = series_rounds[round_index]
+		var date_block: Array = series_date_blocks[round_index]
+		for slot in date_block:
+			for pairing in pairings:
+				var game: GameData = GAME_DATA_SCRIPT.new()
+				game.id = "G_%03d" % game_index
+				game.day = day
+				game.season_year = season_year
+				game.month = int(slot["month"])
+				game.day_of_month = int(slot["day"])
+				game.weekday_index = int(slot["weekday_index"])
+				game.weekday_name = str(slot["weekday_name"])
+				game.date_label = str(slot["date_label"])
+				game.away_team_id = str(pairing["away_team_id"])
+				game.home_team_id = str(pairing["home_team_id"])
+				schedule.append(game)
 				game_index += 1
+			day += 1
 
-				var g2 = GAME_DATA_SCRIPT.new()
-				g2.id = "G_%03d" % game_index
-				g2.day = day
-				g2.away_team_id = b
-				g2.home_team_id = a
-				schedule.append(g2)
-				game_index += 1
+func _build_series_rounds(team_ids: Array[String]) -> Array:
+	var rounds: Array = []
+	if team_ids.size() < 2:
+		return rounds
 
-				day += 1
+	var base_rounds: Array = _build_round_robin_rounds(team_ids)
+	for cycle in range(4):
+		for round_index in range(base_rounds.size()):
+			var pairings: Array = []
+			var base_round: Array = base_rounds[round_index]
+			for matchup in base_round:
+				var home_team_id: String = str(matchup["home_team_id"])
+				var away_team_id: String = str(matchup["away_team_id"])
+				if cycle % 2 == 1:
+					var temp_id: String = home_team_id
+					home_team_id = away_team_id
+					away_team_id = temp_id
+				pairings.append({
+					"home_team_id": home_team_id,
+					"away_team_id": away_team_id
+				})
+			rounds.append(pairings)
+	return rounds
+
+func _build_round_robin_rounds(team_ids: Array[String]) -> Array:
+	var rounds: Array = []
+	var rotation: Array[String] = team_ids.duplicate()
+	if rotation.size() % 2 == 1:
+		rotation.append("BYE")
+
+	var round_count: int = rotation.size() - 1
+	var half: int = rotation.size() / 2
+	for round_index in range(round_count):
+		var pairings: Array = []
+		for i in range(half):
+			var left_id: String = rotation[i]
+			var right_id: String = rotation[rotation.size() - 1 - i]
+			if left_id == "BYE" or right_id == "BYE":
+				continue
+			var home_team_id: String = left_id
+			var away_team_id: String = right_id
+			if round_index % 2 == 1:
+				home_team_id = right_id
+				away_team_id = left_id
+			pairings.append({
+				"home_team_id": home_team_id,
+				"away_team_id": away_team_id
+			})
+		rounds.append(pairings)
+
+		var fixed_team: String = rotation[0]
+		var moving: Array[String] = []
+		for index in range(1, rotation.size()):
+			moving.append(rotation[index])
+		moving.push_front(moving.pop_back())
+		rotation.clear()
+		rotation.append(fixed_team)
+		for team_id in moving:
+			rotation.append(team_id)
+
+	return rounds
+
+func _build_series_date_blocks(block_count: int) -> Array:
+	var result: Array = []
+	var year: int = season_year
+	var month: int = SEASON_START_MONTH
+	var day_of_month: int = SEASON_START_DAY
+
+	while result.size() < block_count:
+		var weekday_index: int = _get_weekday_index(year, month, day_of_month)
+		if weekday_index == 2 or weekday_index == 5:
+			var block: Array = []
+			var block_year: int = year
+			var block_month: int = month
+			var block_day: int = day_of_month
+			for _index in range(3):
+				var block_weekday: int = _get_weekday_index(block_year, block_month, block_day)
+				block.append({
+					"month": block_month,
+					"day": block_day,
+					"weekday_index": block_weekday,
+					"weekday_name": WEEKDAY_NAMES[block_weekday],
+					"date_label": _build_date_label(block_year, block_month, block_day, block_weekday)
+				})
+				var next_date: Dictionary = _advance_date(block_year, block_month, block_day)
+				block_year = int(next_date["year"])
+				block_month = int(next_date["month"])
+				block_day = int(next_date["day"])
+			result.append(block)
+			year = block_year
+			month = block_month
+			day_of_month = block_day
+			continue
+
+		var next_regular_date: Dictionary = _advance_date(year, month, day_of_month)
+		year = int(next_regular_date["year"])
+		month = int(next_regular_date["month"])
+		day_of_month = int(next_regular_date["day"])
+
+	return result
+
+func _build_date_label(year: int, month: int, day_of_month: int, weekday_index: int) -> String:
+	return "%04d-%02d-%02d(%s)" % [year, month, day_of_month, WEEKDAY_NAMES[weekday_index]]
+
+func _advance_date(year: int, month: int, day_of_month: int) -> Dictionary:
+	var next_year: int = year
+	var next_month: int = month
+	var next_day: int = day_of_month + 1
+	if next_day > _get_days_in_month(next_year, next_month):
+		next_day = 1
+		next_month += 1
+		if next_month > 12:
+			next_month = 1
+			next_year += 1
+	return {
+		"year": next_year,
+		"month": next_month,
+		"day": next_day
+	}
+
+func _get_days_in_month(year: int, month: int) -> int:
+	match month:
+		1, 3, 5, 7, 8, 10, 12:
+			return 31
+		4, 6, 9, 11:
+			return 30
+		2:
+			return 29 if _is_leap_year(year) else 28
+		_:
+			return 30
+
+func _is_leap_year(year: int) -> bool:
+	if year % 400 == 0:
+		return true
+	if year % 100 == 0:
+		return false
+	return year % 4 == 0
+
+func _get_weekday_index(year: int, month: int, day_of_month: int) -> int:
+	var month_offsets: Array[int] = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
+	var y: int = year
+	if month < 3:
+		y -= 1
+	return int((y + y / 4 - y / 100 + y / 400 + month_offsets[month - 1] + day_of_month) % 7)
 
 func get_team(team_id: String):
 	if teams.has(team_id):
@@ -138,6 +284,20 @@ func get_games_for_day(day: int) -> Array:
 			result.append(g)
 
 	return result
+
+func get_date_label_for_day(day: int) -> String:
+	for game in schedule:
+		if int(game.day) == day:
+			return str(game.date_label)
+	return "%04d-%02d-%02d" % [season_year, SEASON_START_MONTH, SEASON_START_DAY]
+
+func get_current_date_label() -> String:
+	var target_day: int = current_day
+	if current_day > get_last_day():
+		target_day = get_last_day()
+	if target_day <= 0:
+		target_day = 1
+	return get_date_label_for_day(target_day)
 
 func advance_day() -> void:
 	current_day += 1
