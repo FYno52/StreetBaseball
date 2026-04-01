@@ -85,6 +85,10 @@ text = ""
 layout_mode = 2
 text = ""
 
+[node name="LiveGameButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="SimToSeasonEndButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox"]
 layout_mode = 2
 text = ""

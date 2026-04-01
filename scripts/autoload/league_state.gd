@@ -18,6 +18,7 @@ var current_day: int = 1
 var controlled_team_id: String = ""
 var selected_player_id: String = ""
 var selected_game_id: String = ""
+var selected_match_mode: String = "replay"
 
 # team_id -> TeamData
 var teams: Dictionary = {}
@@ -50,6 +51,7 @@ func reset() -> void:
 	controlled_team_id = ""
 	selected_player_id = ""
 	selected_game_id = ""
+	selected_match_mode = "replay"
 	teams.clear()
 	players.clear()
 	schedule.clear()
@@ -122,6 +124,12 @@ func get_selected_player() -> PlayerData:
 
 func set_selected_game(game_id: String) -> void:
 	selected_game_id = game_id
+
+func set_selected_match_mode(match_mode: String) -> void:
+	selected_match_mode = match_mode
+
+func get_selected_match_mode() -> String:
+	return selected_match_mode
 
 func get_selected_game():
 	if selected_game_id == "":

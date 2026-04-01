@@ -49,6 +49,22 @@ text = ""
 layout_mode = 2
 text = ""
 
+[node name="SpeedButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SlowButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SpeedButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="NormalButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SpeedButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="FastButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SpeedButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="HeaderInfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
@@ -125,6 +141,45 @@ text = ""
 
 [node name="NextButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ControlButtonsHBox"]
 layout_mode = 2
+text = ""
+
+[node name="CommandVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CommandTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/CommandVBox"]
+layout_mode = 2
+text = ""
+
+[node name="CommandStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/CommandVBox"]
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="CommandButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox/CommandVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AggressiveButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/CommandVBox/CommandButtonsHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="BuntButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/CommandVBox/CommandButtonsHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="AdvanceButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/CommandVBox/CommandButtonsHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="IntentionalWalkButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/CommandVBox/CommandButtonsHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
 text = ""
 
 [node name="MainColumns" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]

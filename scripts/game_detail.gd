@@ -1,7 +1,6 @@
 extends Control
 
 const LEAGUE_INFO_SCENE_PATH := "res://scenes/LeagueInfo.tscn"
-const MATCH_SCENE_PATH := "res://scenes/MatchScene.tscn"
 
 @onready var title_label: Label = $RootScroll/MarginContainer/RootVBox/TitleLabel
 @onready var back_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/BackButton
@@ -14,18 +13,20 @@ const MATCH_SCENE_PATH := "res://scenes/MatchScene.tscn"
 @onready var log_title_label: Label = $RootScroll/MarginContainer/RootVBox/LogTitleLabel
 @onready var log_detail_label: Label = $RootScroll/MarginContainer/RootVBox/LogDetailLabel
 
+
 func _ready() -> void:
 	title_label.text = "試合詳細"
 	back_button.text = "リーグ情報へ戻る"
-	replay_button.text = "試合再生へ"
-	info_label.text = "ここでは選択した試合のスコア、投手結果、詳細ログを確認できます。試合再生はこの画面から入る形にしています。"
+	replay_button.text = "簡易リプレイ"
+	replay_button.visible = false
+	info_label.text = "過去試合はここでスコア、勝敗投手、詳細ログを確認します。ライブ操作はホームの「今日の試合へ」から入る形に分けています。"
 	summary_title_label.text = "試合結果"
 	pitching_title_label.text = "投手結果"
 	log_title_label.text = "試合詳細ログ"
 
 	back_button.pressed.connect(_on_back_button_pressed)
-	replay_button.pressed.connect(_on_replay_button_pressed)
 	_refresh_view()
+
 
 func _refresh_view() -> void:
 	var game: GameData = LeagueState.get_selected_game()
@@ -33,7 +34,7 @@ func _refresh_view() -> void:
 		summary_detail_label.text = "試合データが見つかりません。"
 		pitching_detail_label.text = "リーグ情報から試合を選んでください。"
 		log_detail_label.text = "詳細ログはありません。"
-		replay_button.disabled = true
+		replay_button.visible = false
 		return
 
 	var away_name: String = _get_team_name(str(game.away_team_id))
@@ -47,7 +48,7 @@ func _refresh_view() -> void:
 		]
 		pitching_detail_label.text = "投手結果はまだありません。"
 		log_detail_label.text = "試合ログはまだありません。"
-		replay_button.disabled = true
+		replay_button.visible = false
 		return
 
 	summary_detail_label.text = "%s\n%s %d - %d %s" % [
@@ -57,30 +58,25 @@ func _refresh_view() -> void:
 		int(game.home_score),
 		home_name
 	]
-	pitching_detail_label.text = "勝利投手: %s\n敗戦投手: %s\nセーブ投手: %s" % [
+	pitching_detail_label.text = "勝利投手: %s\n敗戦投手: %s\nセーブ: %s" % [
 		_get_player_name(str(game.winning_pitcher_id)),
 		_get_player_name(str(game.losing_pitcher_id)),
 		_get_player_name(str(game.save_pitcher_id))
 	]
-	log_detail_label.text = "詳細ログはまだありません。"
-	if not game.log_lines.is_empty():
-		log_detail_label.text = "\n".join(game.log_lines)
-	replay_button.disabled = false
+	log_detail_label.text = "\n".join(game.log_lines) if not game.log_lines.is_empty() else "試合詳細ログはありません。"
+	replay_button.visible = false
+
 
 func _on_back_button_pressed() -> void:
 	get_tree().change_scene_to_file(LEAGUE_INFO_SCENE_PATH)
 
-func _on_replay_button_pressed() -> void:
-	var game: GameData = LeagueState.get_selected_game()
-	if game == null or not bool(game.played):
-		return
-	get_tree().change_scene_to_file(MATCH_SCENE_PATH)
 
 func _get_team_name(team_id: String) -> String:
 	var team = LeagueState.get_team(team_id)
 	if team == null:
 		return team_id
 	return str(team.name)
+
 
 func _get_player_name(player_id: String) -> String:
 	if player_id == "":

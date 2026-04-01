@@ -1,4 +1,4 @@
-extends Node
+﻿extends Node
 
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
@@ -6,6 +6,71 @@ func _ready() -> void:
 	rng.randomize()
 
 func simulate_game(game, away_team, home_team) -> Dictionary:
+	return _build_game_package(game, away_team, home_team, true)
+
+
+func prepare_live_game(game, away_team, home_team, command_profile: String = "neutral") -> Dictionary:
+	return _build_game_package(game, away_team, home_team, false, command_profile)
+
+
+func commit_prepared_live_game(game, away_team, home_team, prepared_package: Dictionary) -> Dictionary:
+	if game == null or away_team == null or home_team == null:
+		return {}
+	if prepared_package.is_empty():
+		return simulate_game(game, away_team, home_team)
+
+	game.played = true
+	game.away_score = int(prepared_package.get("away_score", 0))
+	game.home_score = int(prepared_package.get("home_score", 0))
+	game.winning_pitcher_id = str(prepared_package.get("winning_pitcher_id", ""))
+	game.losing_pitcher_id = str(prepared_package.get("losing_pitcher_id", ""))
+	game.save_pitcher_id = str(prepared_package.get("save_pitcher_id", ""))
+	game.log_lines.clear()
+	for line_value in prepared_package.get("log_lines", []):
+		game.log_lines.append(str(line_value))
+	game.play_events.clear()
+	for event_value in prepared_package.get("play_events", []):
+		if event_value is Dictionary:
+			game.play_events.append((event_value as Dictionary).duplicate(true))
+
+	var away_lineup_ids: Array[String] = []
+	for player_id in prepared_package.get("away_lineup_ids", []):
+		away_lineup_ids.append(str(player_id))
+	var home_lineup_ids: Array[String] = []
+	for player_id in prepared_package.get("home_lineup_ids", []):
+		home_lineup_ids.append(str(player_id))
+
+	var away_plan: Array = []
+	for outing_value in prepared_package.get("away_plan", []):
+		away_plan.append(outing_value)
+	var home_plan: Array = []
+	for outing_value in prepared_package.get("home_plan", []):
+		home_plan.append(outing_value)
+
+	_apply_team_result(away_team, home_team, int(game.away_score), int(game.home_score))
+	_apply_minimal_player_stats(away_team, home_team, int(game.away_score), int(game.home_score), away_lineup_ids, home_lineup_ids, away_plan, home_plan)
+
+	return {
+		"away_team_id": away_team.id,
+		"home_team_id": home_team.id,
+		"away_score": game.away_score,
+		"home_score": game.home_score,
+		"log_lines": game.log_lines,
+		"play_events": game.play_events,
+	}
+
+
+func _build_game_package(game, away_team, home_team, commit_result: bool, command_profile: String = "neutral") -> Dictionary:
+	if game == null or away_team == null or home_team == null:
+		return {
+			"away_team_id": "",
+			"home_team_id": "",
+			"away_score": 0,
+			"home_score": 0,
+			"log_lines": [],
+			"play_events": [],
+		}
+
 	if game.played:
 		return {
 			"away_team_id": away_team.id,
@@ -35,6 +100,10 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 	away_pitch_def += float(away_event_bonus.get("pitch", 0.0))
 	home_pitch_def += float(home_event_bonus.get("pitch", 0.0))
 
+	var away_command_bonus: Dictionary = _get_live_command_bonus(command_profile, away_team)
+	away_attack += float(away_command_bonus.get("attack", 0.0))
+	home_pitch_def += float(away_command_bonus.get("pitch_pressure", 0.0))
+
 	var away_score: int = _calc_score_from_matchup(away_attack, home_pitch_def)
 	var home_score: int = _calc_score_from_matchup(home_attack, away_pitch_def)
 	var run_margin: int = abs(away_score - home_score)
@@ -58,26 +127,12 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 	var log_lines: Array[String] = []
 	log_lines.append("試合開始")
 	log_lines.append("%s vs %s" % [away_team.name, home_team.name])
-
-	if away_starter != null:
-		log_lines.append("ビジター先発: %s (%s)" % [away_starter.full_name, away_starter.throws])
-	else:
-		log_lines.append("ビジター先発: なし")
-
-	if home_starter != null:
-		log_lines.append("ホーム先発: %s (%s)" % [home_starter.full_name, home_starter.throws])
-	else:
-		log_lines.append("ホーム先発: なし")
-
-	log_lines.append("ビジター打線: 対%s" % _get_pitcher_hand_label(home_starter))
-	log_lines.append("ホーム打線: 対%s" % _get_pitcher_hand_label(away_starter))
+	log_lines.append("ビジター先発: %s" % (away_starter.full_name if away_starter != null else "未設定"))
+	log_lines.append("ホーム先発: %s" % (home_starter.full_name if home_starter != null else "未設定"))
 	log_lines.append("ビジター方針: %s" % _get_strategy_log_label(str(away_team.strategy)))
 	log_lines.append("ホーム方針: %s" % _get_strategy_log_label(str(home_team.strategy)))
-	log_lines.append("ビジターイベント補正: 打撃=%.2f 投手=%.2f" % [float(away_event_bonus.get("attack", 0.0)), float(away_event_bonus.get("pitch", 0.0))])
-	log_lines.append("ホームイベント補正: 打撃=%.2f 投手=%.2f" % [float(home_event_bonus.get("attack", 0.0)), float(home_event_bonus.get("pitch", 0.0))])
-	log_lines.append("ビジター打撃力=%.2f / ホーム投手力=%.2f" % [away_attack, home_pitch_def])
-	log_lines.append("ホーム打撃力=%.2f / ビジター投手力=%.2f" % [home_attack, away_pitch_def])
-	log_lines.append("9回終了")
+	if command_profile != "neutral":
+		log_lines.append("ライブ指示: %s" % _get_live_command_label(command_profile))
 	log_lines.append("%s %d - %d %s" % [away_team.name, away_score, home_score, home_team.name])
 
 	if away_score > home_score:
@@ -94,30 +149,73 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 	if save_pitcher != null:
 		log_lines.append("セーブ: %s" % save_pitcher.full_name)
 
-	game.played = true
-	game.away_score = away_score
-	game.home_score = home_score
-	game.winning_pitcher_id = "" if winning_pitcher == null else str(winning_pitcher.id)
-	game.losing_pitcher_id = "" if losing_pitcher == null else str(losing_pitcher.id)
-	game.save_pitcher_id = "" if save_pitcher == null else str(save_pitcher.id)
-	game.log_lines.clear()
-	for line in log_lines:
-		game.log_lines.append(line)
-	game.play_events = _build_game_event_sequence(game, away_team, home_team, away_score, home_score, away_plan, home_plan)
+	var built_events: Array[Dictionary] = _build_game_event_sequence(game, away_team, home_team, away_score, home_score, away_plan, home_plan, away_lineup_ids, home_lineup_ids, command_profile)
 
-	_apply_team_result(away_team, home_team, away_score, home_score)
-	_apply_minimal_player_stats(away_team, home_team, away_score, home_score, away_lineup_ids, home_lineup_ids, away_plan, home_plan)
+	if commit_result:
+		game.played = true
+		game.away_score = away_score
+		game.home_score = home_score
+		game.winning_pitcher_id = "" if winning_pitcher == null else str(winning_pitcher.id)
+		game.losing_pitcher_id = "" if losing_pitcher == null else str(losing_pitcher.id)
+		game.save_pitcher_id = "" if save_pitcher == null else str(save_pitcher.id)
+		game.log_lines.clear()
+		for line in log_lines:
+			game.log_lines.append(line)
+		game.play_events = built_events
+
+		_apply_team_result(away_team, home_team, away_score, home_score)
+		_apply_minimal_player_stats(away_team, home_team, away_score, home_score, away_lineup_ids, home_lineup_ids, away_plan, home_plan)
 
 	return {
 		"away_team_id": away_team.id,
 		"home_team_id": home_team.id,
 		"away_score": away_score,
 		"home_score": home_score,
+		"winning_pitcher_id": "" if winning_pitcher == null else str(winning_pitcher.id),
+		"losing_pitcher_id": "" if losing_pitcher == null else str(losing_pitcher.id),
+		"save_pitcher_id": "" if save_pitcher == null else str(save_pitcher.id),
+		"away_lineup_ids": away_lineup_ids.duplicate(),
+		"home_lineup_ids": home_lineup_ids.duplicate(),
+		"away_plan": away_plan.duplicate(true),
+		"home_plan": home_plan.duplicate(true),
 		"log_lines": log_lines,
-		"play_events": game.play_events,
+		"play_events": built_events,
 	}
 
-func _build_game_event_sequence(game, away_team, home_team, away_score: int, home_score: int, away_plan: Array, home_plan: Array) -> Array[Dictionary]:
+
+func _get_live_command_bonus(command_profile: String, offense_team) -> Dictionary:
+	if offense_team == null or str(LeagueState.controlled_team_id) != str(offense_team.id):
+		return {
+			"attack": 0.0,
+			"pitch_pressure": 0.0,
+		}
+
+	match command_profile:
+		"aggressive":
+			return {"attack": 0.8, "pitch_pressure": -0.2}
+		"bunt":
+			return {"attack": -0.6, "pitch_pressure": 0.0}
+		"advance":
+			return {"attack": 0.2, "pitch_pressure": 0.0}
+		"intentional_walk":
+			return {"attack": -0.2, "pitch_pressure": 0.2}
+		_:
+			return {"attack": 0.0, "pitch_pressure": 0.0}
+
+func _get_live_command_label(command_profile: String) -> String:
+	match command_profile:
+		"aggressive":
+			return "強攻"
+		"bunt":
+			return "バント"
+		"advance":
+			return "進塁重視"
+		"intentional_walk":
+			return "敬遠"
+		_:
+			return "通常"
+
+func _build_game_event_sequence(game, away_team, home_team, away_score: int, home_score: int, away_plan: Array, home_plan: Array, away_lineup_ids: Array[String], home_lineup_ids: Array[String], command_profile: String = "neutral") -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	events.append({
 		"type": "game_start",
@@ -133,35 +231,27 @@ func _build_game_event_sequence(game, away_team, home_team, away_score: int, hom
 	var home_by_inning: Array[int] = _distribute_runs_by_inning(home_score)
 	var away_total: int = 0
 	var home_total: int = 0
+	var away_batter_index: int = 0
+	var home_batter_index: int = 0
 
 	for inning in range(9):
 		var away_runs: int = away_by_inning[inning]
 		var home_runs: int = home_by_inning[inning]
-		away_total += away_runs
-		home_total += home_runs
+		var away_command: String = command_profile if str(LeagueState.controlled_team_id) == str(away_team.id) else "neutral"
+		var home_command: String = command_profile if str(LeagueState.controlled_team_id) == str(home_team.id) else "neutral"
+		var away_sequence: Dictionary = _build_half_inning_sequence(away_team, away_lineup_ids, away_batter_index, inning + 1, "top", away_runs, away_total, home_total, home_plan, inning * 3, away_command)
+		for event_value in away_sequence.get("events", []):
+			events.append(event_value)
+		away_batter_index = int(away_sequence.get("next_batter_index", away_batter_index))
+		away_total = int(away_sequence.get("away_score", away_total))
+		home_total = int(away_sequence.get("home_score", home_total))
 
-		events.append({
-			"type": "half_inning",
-			"inning": inning + 1,
-			"side": "top",
-			"runs_scored": away_runs,
-			"away_score": away_total,
-			"home_score": home_total,
-			"outs": 3,
-			"offense_team_id": str(away_team.id),
-			"offense_team_name": str(away_team.name),
-		})
-		events.append({
-			"type": "half_inning",
-			"inning": inning + 1,
-			"side": "bottom",
-			"runs_scored": home_runs,
-			"away_score": away_total,
-			"home_score": home_total,
-			"outs": 3,
-			"offense_team_id": str(home_team.id),
-			"offense_team_name": str(home_team.name),
-		})
+		var home_sequence: Dictionary = _build_half_inning_sequence(home_team, home_lineup_ids, home_batter_index, inning + 1, "bottom", home_runs, away_total, home_total, away_plan, inning * 3, home_command)
+		for event_value in home_sequence.get("events", []):
+			events.append(event_value)
+		home_batter_index = int(home_sequence.get("next_batter_index", home_batter_index))
+		away_total = int(home_sequence.get("away_score", away_total))
+		home_total = int(home_sequence.get("home_score", home_total))
 
 	events.append({
 		"type": "pitching_summary",
@@ -182,6 +272,666 @@ func _build_game_event_sequence(game, away_team, home_team, away_score: int, hom
 		"save_pitcher_id": str(game.save_pitcher_id),
 	})
 	return events
+
+func _build_half_inning_sequence(team, lineup_ids: Array[String], batter_index: int, inning: int, side: String, target_runs: int, away_score_before: int, home_score_before: int, defensive_plan: Array, defensive_outs_before: int, command_profile: String = "neutral") -> Dictionary:
+	var events: Array[Dictionary] = []
+	var outs: int = 0
+	var runs_scored: int = 0
+	var away_score: int = away_score_before
+	var home_score: int = home_score_before
+	var bases: Array[bool] = [false, false, false]
+	var lineup_size: int = maxi(1, lineup_ids.size())
+	var next_batter_index: int = batter_index
+
+	events.append({
+		"type": "half_inning_start",
+		"inning": inning,
+		"side": side,
+		"outs": outs,
+		"bases": bases.duplicate(),
+		"away_score": away_score,
+		"home_score": home_score,
+		"offense_team_id": str(team.id),
+		"offense_team_name": str(team.name),
+		"pitcher_id": str(_get_pitcher_from_plan_for_outs(defensive_plan, defensive_outs_before).get("id", "")),
+		"pitcher_name": str(_get_pitcher_from_plan_for_outs(defensive_plan, defensive_outs_before).get("name", "")),
+	})
+
+	var safety_count: int = 0
+	while outs < 3 and safety_count < 20:
+		safety_count += 1
+		var active_pitcher: Dictionary = _get_pitcher_from_plan_for_outs(defensive_plan, defensive_outs_before + outs)
+		var batter_info: Dictionary = _get_lineup_batter_info(lineup_ids, next_batter_index)
+		next_batter_index = int(batter_info.get("next_index", 0))
+		var result: String = _choose_at_bat_result(target_runs - runs_scored, outs, bases, command_profile)
+		var batted_ball: Dictionary = _build_batted_ball_info(result)
+		var pitch_count_info: Dictionary = _build_pitch_count_info(result, command_profile)
+		var bases_before: Array[bool] = bases.duplicate()
+		var outs_before: int = outs
+		for pitch_event in _build_pitch_events(inning, side, batter_info, active_pitcher, team, away_score, home_score, bases_before, pitch_count_info):
+			events.append(pitch_event)
+		var play_result: Dictionary = _apply_at_bat_result(result, bases, outs)
+		bases = play_result.get("bases", [false, false, false])
+		outs = int(play_result.get("outs", outs))
+		var play_runs: int = int(play_result.get("runs_scored", 0))
+		runs_scored += play_runs
+		if side == "top":
+			away_score += play_runs
+		else:
+			home_score += play_runs
+
+		events.append({
+			"type": "at_bat",
+			"inning": inning,
+			"side": side,
+			"batter_id": str(batter_info.get("player_id", "")),
+			"batter_name": str(batter_info.get("player_name", "")),
+			"pitcher_id": str(active_pitcher.get("id", "")),
+			"pitcher_name": str(active_pitcher.get("name", "")),
+			"result": result,
+			"result_label": _get_at_bat_result_label(result),
+			"batted_ball_type": str(batted_ball.get("type", "")),
+			"batted_ball_label": str(batted_ball.get("type_label", "")),
+			"batted_ball_direction": str(batted_ball.get("direction", "")),
+			"batted_ball_direction_label": str(batted_ball.get("direction_label", "")),
+			"balls": int(pitch_count_info.get("balls", 0)),
+			"strikes": int(pitch_count_info.get("strikes", 0)),
+			"pitch_count": int(pitch_count_info.get("pitch_count", 0)),
+			"pitch_result_summary": str(pitch_count_info.get("summary", "")),
+			"outs_before": outs_before,
+			"outs_on_play": int(play_result.get("outs_on_play", outs - outs_before)),
+			"bases_before": bases_before,
+			"outs": outs,
+			"bases": bases.duplicate(),
+			"runs_scored": play_runs,
+			"play_note": str(play_result.get("play_note", "")),
+			"command_profile": command_profile,
+			"away_score": away_score,
+			"home_score": home_score,
+			"offense_team_id": str(team.id),
+			"offense_team_name": str(team.name),
+		})
+		if runs_scored >= target_runs and outs >= 3:
+			break
+
+	if runs_scored < target_runs:
+		while runs_scored < target_runs:
+			var active_pitcher_force: Dictionary = _get_pitcher_from_plan_for_outs(defensive_plan, defensive_outs_before + outs)
+			var batter_info_force: Dictionary = _get_lineup_batter_info(lineup_ids, next_batter_index)
+			next_batter_index = int(batter_info_force.get("next_index", 0))
+			var forced_result: String = "bunt_success" if command_profile == "bunt" and outs <= 1 and (bases[0] or bases[1]) else "home_run"
+			var forced_batted_ball: Dictionary = _build_batted_ball_info(forced_result)
+			var forced_pitch_count_info: Dictionary = _build_pitch_count_info(forced_result, command_profile)
+			var bases_before_force: Array[bool] = bases.duplicate()
+			var outs_before_force: int = outs
+			for pitch_event in _build_pitch_events(inning, side, batter_info_force, active_pitcher_force, team, away_score, home_score, bases_before_force, forced_pitch_count_info):
+				events.append(pitch_event)
+			var forced_play: Dictionary = _apply_at_bat_result(forced_result, bases, outs)
+			bases = forced_play.get("bases", [false, false, false])
+			var forced_runs: int = mini(target_runs - runs_scored, int(forced_play.get("runs_scored", 0)))
+			runs_scored += forced_runs
+			if side == "top":
+				away_score += forced_runs
+			else:
+				home_score += forced_runs
+			events.append({
+				"type": "at_bat",
+				"inning": inning,
+				"side": side,
+				"batter_id": str(batter_info_force.get("player_id", "")),
+				"batter_name": str(batter_info_force.get("player_name", "")),
+				"pitcher_id": str(active_pitcher_force.get("id", "")),
+				"pitcher_name": str(active_pitcher_force.get("name", "")),
+				"result": forced_result,
+				"result_label": _get_at_bat_result_label(forced_result),
+				"batted_ball_type": str(forced_batted_ball.get("type", "")),
+				"batted_ball_label": str(forced_batted_ball.get("type_label", "")),
+				"batted_ball_direction": str(forced_batted_ball.get("direction", "")),
+				"batted_ball_direction_label": str(forced_batted_ball.get("direction_label", "")),
+				"balls": int(forced_pitch_count_info.get("balls", 0)),
+				"strikes": int(forced_pitch_count_info.get("strikes", 0)),
+				"pitch_count": int(forced_pitch_count_info.get("pitch_count", 0)),
+				"pitch_result_summary": str(forced_pitch_count_info.get("summary", "")),
+				"outs_before": outs_before_force,
+				"outs_on_play": int(forced_play.get("outs_on_play", 0)),
+				"bases_before": bases_before_force,
+				"outs": outs,
+				"bases": bases.duplicate(),
+				"runs_scored": forced_runs,
+				"play_note": str(forced_play.get("play_note", "")),
+				"command_profile": command_profile,
+				"away_score": away_score,
+				"home_score": home_score,
+				"offense_team_id": str(team.id),
+				"offense_team_name": str(team.name),
+			})
+
+	if outs < 3:
+		while outs < 3:
+			var active_pitcher_out: Dictionary = _get_pitcher_from_plan_for_outs(defensive_plan, defensive_outs_before + outs)
+			var batter_info_out: Dictionary = _get_lineup_batter_info(lineup_ids, next_batter_index)
+			next_batter_index = int(batter_info_out.get("next_index", 0))
+			var out_result: String = "out"
+			var out_batted_ball: Dictionary = _build_batted_ball_info(out_result)
+			var out_pitch_count_info: Dictionary = _build_pitch_count_info(out_result, command_profile)
+			var bases_before_out: Array[bool] = bases.duplicate()
+			var outs_before_out: int = outs
+			for pitch_event in _build_pitch_events(inning, side, batter_info_out, active_pitcher_out, team, away_score, home_score, bases_before_out, out_pitch_count_info):
+				events.append(pitch_event)
+			var out_play: Dictionary = _apply_at_bat_result(out_result, bases, outs)
+			bases = out_play.get("bases", [false, false, false])
+			outs = int(out_play.get("outs", outs))
+			events.append({
+				"type": "at_bat",
+				"inning": inning,
+				"side": side,
+				"batter_id": str(batter_info_out.get("player_id", "")),
+				"batter_name": str(batter_info_out.get("player_name", "")),
+				"pitcher_id": str(active_pitcher_out.get("id", "")),
+				"pitcher_name": str(active_pitcher_out.get("name", "")),
+				"result": out_result,
+				"result_label": _get_at_bat_result_label(out_result),
+				"batted_ball_type": str(out_batted_ball.get("type", "")),
+				"batted_ball_label": str(out_batted_ball.get("type_label", "")),
+				"batted_ball_direction": str(out_batted_ball.get("direction", "")),
+				"batted_ball_direction_label": str(out_batted_ball.get("direction_label", "")),
+				"balls": int(out_pitch_count_info.get("balls", 0)),
+				"strikes": int(out_pitch_count_info.get("strikes", 0)),
+				"pitch_count": int(out_pitch_count_info.get("pitch_count", 0)),
+				"pitch_result_summary": str(out_pitch_count_info.get("summary", "")),
+				"outs_before": outs_before_out,
+				"outs_on_play": int(out_play.get("outs_on_play", outs - outs_before_out)),
+				"bases_before": bases_before_out,
+				"outs": outs,
+				"bases": bases.duplicate(),
+				"runs_scored": 0,
+				"play_note": str(out_play.get("play_note", "")),
+				"command_profile": command_profile,
+				"away_score": away_score,
+				"home_score": home_score,
+				"offense_team_id": str(team.id),
+				"offense_team_name": str(team.name),
+			})
+
+	events.append({
+		"type": "half_inning",
+		"inning": inning,
+		"side": side,
+		"runs_scored": target_runs,
+		"away_score": away_score,
+		"home_score": home_score,
+		"outs": 3,
+		"bases": [false, false, false],
+		"offense_team_id": str(team.id),
+		"offense_team_name": str(team.name),
+	})
+
+	return {
+		"events": events,
+		"next_batter_index": next_batter_index % lineup_size,
+		"away_score": away_score,
+		"home_score": home_score,
+	}
+
+
+func _build_pitch_events(inning: int, side: String, batter_info: Dictionary, pitcher_info: Dictionary, team, away_score: int, home_score: int, bases_before: Array[bool], pitch_count_info: Dictionary) -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	var balls_target: int = int(pitch_count_info.get("balls", 0))
+	var strikes_target: int = int(pitch_count_info.get("strikes", 0))
+	var pitch_total: int = maxi(1, int(pitch_count_info.get("pitch_count", 1)))
+	var balls_now: int = 0
+	var strikes_now: int = 0
+
+	for pitch_number in range(1, pitch_total + 1):
+		var is_last_pitch: bool = pitch_number == pitch_total
+		var result_label: String = "投球"
+		var pitch_type_label: String = _get_random_pitch_type_label()
+		var pitch_zone_label: String = _get_random_pitch_zone_label()
+		if not is_last_pitch:
+			if balls_now < balls_target and strikes_now < strikes_target:
+				if rng.randf() < 0.5:
+					balls_now += 1
+					result_label = "ボール"
+				else:
+					strikes_now += 1
+					result_label = "ストライク"
+			elif balls_now < balls_target:
+				balls_now += 1
+				result_label = "ボール"
+			elif strikes_now < strikes_target:
+				strikes_now += 1
+				result_label = "ファウル" if strikes_now >= 2 and rng.randf() < 0.45 else "ストライク"
+			else:
+				result_label = "ファウル"
+		else:
+			balls_now = balls_target
+			strikes_now = strikes_target
+			result_label = str(pitch_count_info.get("summary", "打席結果"))
+
+		events.append({
+			"type": "pitch",
+			"inning": inning,
+			"side": side,
+			"pitch_number": pitch_number,
+			"batter_id": str(batter_info.get("player_id", "")),
+			"batter_name": str(batter_info.get("player_name", "")),
+			"pitcher_id": str(pitcher_info.get("id", "")),
+			"pitcher_name": str(pitcher_info.get("name", "")),
+			"pitch_result_label": result_label,
+			"pitch_type_label": pitch_type_label,
+			"pitch_zone_label": pitch_zone_label,
+			"balls_after": balls_now,
+			"strikes_after": strikes_now,
+			"bases": bases_before.duplicate(),
+			"away_score": away_score,
+			"home_score": home_score,
+			"offense_team_id": str(team.id),
+			"offense_team_name": str(team.name),
+		})
+
+	return events
+
+
+func _get_random_pitch_type_label() -> String:
+	var pitch_types: Array[String] = ["ストレート", "スライダー", "カーブ", "フォーク", "ツーシーム", "カット"]
+	return pitch_types[rng.randi_range(0, pitch_types.size() - 1)]
+
+
+func _get_random_pitch_zone_label() -> String:
+	var pitch_zones: Array[String] = ["外角高め", "外角低め", "内角高め", "内角低め", "真ん中高め", "真ん中低め"]
+	return pitch_zones[rng.randi_range(0, pitch_zones.size() - 1)]
+
+
+func _build_pitch_count_info(result: String, command_profile: String = "neutral") -> Dictionary:
+	var balls: int = 0
+	var strikes: int = 0
+	var pitch_count: int = 0
+	var summary: String = ""
+
+	match result:
+		"walk":
+			balls = 4
+			strikes = rng.randi_range(0, 2)
+			pitch_count = balls + strikes
+			summary = "%d-%d縺九ｉ蝗帷帥" % [balls, strikes]
+		"strikeout":
+			strikes = 3
+			balls = rng.randi_range(0, 3)
+			pitch_count = balls + strikes
+			summary = "%d-%d縺九ｉ荳画険" % [balls, strikes]
+		"bunt_success":
+			balls = rng.randi_range(0, 1)
+			strikes = rng.randi_range(0, 2)
+			pitch_count = maxi(1, balls + strikes + rng.randi_range(0, 1))
+			summary = "繝舌Φ繝医〒蜍晁ｲ"
+		"home_run", "double", "triple", "single":
+			balls = rng.randi_range(0, 3)
+			strikes = rng.randi_range(0, 2)
+			pitch_count = maxi(1, balls + strikes + 1)
+			summary = "%d球目を打った" % pitch_count
+		_:
+			balls = rng.randi_range(0, 3)
+			strikes = rng.randi_range(0, 2)
+			pitch_count = maxi(1, balls + strikes + 1)
+			summary = "%d球で打席終了" % pitch_count
+
+	if command_profile == "aggressive":
+		pitch_count = maxi(1, pitch_count - 1)
+	elif command_profile == "advance":
+		pitch_count += 1
+
+	return {
+		"balls": balls,
+		"strikes": strikes,
+		"pitch_count": pitch_count,
+		"summary": summary,
+	}
+
+func _get_pitcher_from_plan_for_outs(plan: Array, target_outs: int) -> Dictionary:
+	var covered_outs: int = 0
+	for outing_value in plan:
+		var outing: Dictionary = outing_value
+		var pitcher = outing.get("pitcher", null)
+		var outing_outs: int = int(outing.get("outs", 0))
+		if pitcher == null:
+			continue
+		if target_outs < covered_outs + outing_outs:
+			return {
+				"id": str(pitcher.id),
+				"name": str(pitcher.full_name),
+			}
+		covered_outs += outing_outs
+	if not plan.is_empty():
+		var last_outing: Dictionary = plan[plan.size() - 1]
+		var last_pitcher = last_outing.get("pitcher", null)
+		if last_pitcher != null:
+			return {
+				"id": str(last_pitcher.id),
+				"name": str(last_pitcher.full_name),
+			}
+	return {
+		"id": "",
+		"name": "投手",
+	}
+
+func _build_batted_ball_info(result: String) -> Dictionary:
+	match result:
+		"walk":
+			return {
+				"type": "none",
+				"type_label": "ボール判定",
+				"direction": "none",
+				"direction_label": "打球なし",
+			}
+		"strikeout":
+			return {
+				"type": "none",
+				"type_label": "空振り",
+				"direction": "none",
+				"direction_label": "打球なし",
+			}
+		"fly_out":
+			return _build_contact_event("fly", _get_random_direction(["LF", "CF", "RF"]))
+		"ground_out":
+			return _build_contact_event("ground", _get_random_direction(["1B", "2B", "3B", "SS"]))
+		"double_play":
+			return _build_contact_event("ground", _get_random_direction(["2B", "SS"]))
+		"single":
+			return _build_contact_event("line", _get_random_direction(["LF", "CF", "RF"]))
+		"double":
+			return _build_contact_event("gap", _get_random_direction(["LCF", "RCF", "LF", "RF"]))
+		"triple":
+			return _build_contact_event("gap", _get_random_direction(["LCF", "RCF"]))
+		"home_run":
+			return _build_contact_event("home_run", _get_random_direction(["LF", "CF", "RF"]))
+		_:
+			return _build_contact_event("ground", _get_random_direction(["P", "1B", "2B", "3B", "SS"]))
+
+func _build_contact_event(ball_type: String, direction: String) -> Dictionary:
+	return {
+		"type": ball_type,
+		"type_label": _get_batted_ball_type_label(ball_type),
+		"direction": direction,
+		"direction_label": _get_batted_ball_direction_label(direction),
+	}
+
+func _get_random_direction(candidates: Array[String]) -> String:
+	if candidates.is_empty():
+		return "none"
+	return candidates[rng.randi_range(0, candidates.size() - 1)]
+
+func _get_batted_ball_type_label(ball_type: String) -> String:
+	match ball_type:
+		"fly":
+			return "外野フライ"
+		"ground":
+			return "ゴロ"
+		"line":
+			return "ライナー"
+		"gap":
+			return "長打性の打球"
+		"home_run":
+			return "ホームラン性の打球"
+		_:
+			return "打球"
+
+func _get_batted_ball_direction_label(direction: String) -> String:
+	match direction:
+		"LF":
+			return "レフト"
+		"CF":
+			return "センター"
+		"RF":
+			return "ライト"
+		"LCF":
+			return "左中間"
+		"RCF":
+			return "右中間"
+		"1B":
+			return "一塁線"
+		"2B":
+			return "二塁付近"
+		"3B":
+			return "三塁線"
+		"SS":
+			return "三遊間"
+		"P":
+			return "投手前"
+		_:
+			return "方向なし"
+func _get_lineup_batter_info(lineup_ids: Array[String], batter_index: int) -> Dictionary:
+	if lineup_ids.is_empty():
+		return {
+			"player_id": "",
+			"player_name": "選手",
+			"next_index": 0,
+		}
+	var lineup_size: int = lineup_ids.size()
+	var resolved_index: int = posmod(batter_index, lineup_size)
+	var player_id: String = str(lineup_ids[resolved_index])
+	var player = LeagueState.get_player(player_id)
+	return {
+		"player_id": player_id,
+		"player_name": player.full_name if player != null else "選手",
+		"next_index": (resolved_index + 1) % lineup_size,
+	}
+
+func _choose_at_bat_result(remaining_runs: int, outs: int, bases: Array[bool], command_profile: String = "neutral") -> String:
+	if command_profile == "bunt" and outs <= 1 and (bases[0] or bases[1]):
+		var bunt_roll: float = rng.randf()
+		if bunt_roll < 0.55:
+			return "bunt_success"
+		if bunt_roll < 0.80:
+			return "ground_out"
+		return "double_play"
+
+	if command_profile == "aggressive":
+		var aggressive_roll: float = rng.randf()
+		if aggressive_roll < 0.18:
+			return "home_run"
+		if aggressive_roll < 0.36:
+			return "double"
+		if aggressive_roll < 0.52:
+			return "single"
+		if aggressive_roll < 0.72:
+			return "strikeout"
+		if aggressive_roll < 0.86:
+			return "fly_out"
+		return "ground_out"
+
+	if command_profile == "advance" and (bases[0] or bases[1] or bases[2]):
+		var advance_roll: float = rng.randf()
+		if advance_roll < 0.25:
+			return "single"
+		if advance_roll < 0.45:
+			return "ground_out"
+		if advance_roll < 0.65:
+			return "fly_out"
+		if advance_roll < 0.80:
+			return "walk"
+		return "double"
+
+	if command_profile == "intentional_walk" and bases[1] and rng.randf() < 0.35:
+		return "walk"
+
+	if remaining_runs <= 0:
+		var no_run_roll: float = rng.randf()
+		if no_run_roll < 0.35:
+			return "strikeout"
+		if no_run_roll < 0.65:
+			return "ground_out"
+		if no_run_roll < 0.80:
+			return "fly_out"
+		if no_run_roll < 0.88:
+			return "walk"
+		return "single"
+
+	if outs >= 2 and remaining_runs > 0 and not bases[0] and not bases[1] and not bases[2]:
+		return "home_run"
+
+	if not bases[0] and not bases[1] and not bases[2]:
+		var empty_roll: float = rng.randf()
+		if empty_roll < 0.38:
+			return "single"
+		if empty_roll < 0.62:
+			return "double"
+		if empty_roll < 0.72:
+			return "triple"
+		if empty_roll < 0.86:
+			return "home_run"
+		return "strikeout"
+
+	if bases[2] or bases[1]:
+		var scoring_roll: float = rng.randf()
+		if scoring_roll < 0.32:
+			return "single"
+		if scoring_roll < 0.56:
+			return "double"
+		if scoring_roll < 0.68:
+			return "walk"
+		if scoring_roll < 0.82:
+			return "fly_out"
+		return "home_run"
+
+	if bases[0] and remaining_runs >= 2 and rng.randf() < 0.35:
+		return "home_run"
+
+	var runner_roll: float = rng.randf()
+	if runner_roll < 0.22:
+		return "walk"
+	if runner_roll < 0.48:
+		return "single"
+	if runner_roll < 0.64:
+		return "double"
+	if runner_roll < 0.78 and outs <= 1:
+		return "double_play"
+	if runner_roll < 0.89:
+		return "ground_out"
+	return "strikeout"
+
+func _apply_at_bat_result(result: String, current_bases: Array[bool], current_outs: int) -> Dictionary:
+	var bases: Array[bool] = current_bases.duplicate()
+	var outs: int = current_outs
+	var runs_scored: int = 0
+	var play_note: String = ""
+	match result:
+		"bunt_success":
+			outs = mini(3, outs + 1)
+			play_note = "送りバント成功"
+			if bases[2] and outs < 3:
+				runs_scored += 1
+				bases[2] = false
+				play_note = "スクイズ成功"
+			var new_third_bunt: bool = bases[1]
+			var new_second_bunt: bool = bases[0]
+			bases = [false, new_second_bunt, new_third_bunt]
+		"out", "strikeout":
+			outs = mini(3, outs + 1)
+			if result == "strikeout":
+				play_note = "空振り三振"
+		"fly_out":
+			outs = mini(3, outs + 1)
+			if outs < 3 and bases[2] and rng.randf() < 0.45:
+				runs_scored += 1
+				bases[2] = false
+				play_note = "犠牲フライ"
+		"ground_out":
+			outs = mini(3, outs + 1)
+			if outs < 3 and bases[2] and rng.randf() < 0.18:
+				runs_scored += 1
+				bases[2] = false
+				play_note = "内野ゴロの間に生還"
+			if outs < 3 and bases[0]:
+				var runner_from_first_to_third: bool = bool(bases[1]) or rng.randf() < 0.35
+				bases = [false, bases[1], runner_from_first_to_third]
+		"double_play":
+			if bases[0] and outs <= 1:
+				outs = mini(3, outs + 2)
+				bases[0] = false
+				play_note = "併殺成立"
+			else:
+				outs = mini(3, outs + 1)
+		"walk":
+			if bases[0] and bases[1] and bases[2]:
+				runs_scored += 1
+				play_note = "押し出し"
+			var new_third_walk: bool = bases[2]
+			if bases[1] and bases[0]:
+				new_third_walk = true
+			var new_second_walk: bool = bases[1] or bases[0]
+			bases = [true, new_second_walk, new_third_walk]
+		"single":
+			if bases[2]:
+				runs_scored += 1
+			if bases[1] and rng.randf() < 0.55:
+				runs_scored += 1
+				bases[1] = false
+			var new_second: bool = false
+			var new_third: bool = false
+			if bases[1]:
+				new_third = true
+			if bases[0]:
+				if rng.randf() < 0.55:
+					new_third = true
+				else:
+					new_second = true
+			bases = [true, new_second, new_third]
+		"double":
+			if bases[2]:
+				runs_scored += 1
+			if bases[1]:
+				runs_scored += 1
+			var runner_scores_from_first: bool = bases[0] and rng.randf() < 0.45
+			if runner_scores_from_first:
+				runs_scored += 1
+			var runner_to_third: bool = bases[0] and not runner_scores_from_first
+			bases = [false, true, runner_to_third]
+		"triple":
+			for occupied in bases:
+				if bool(occupied):
+					runs_scored += 1
+			bases = [false, false, true]
+		"home_run":
+			for occupied in bases:
+				if bool(occupied):
+					runs_scored += 1
+			runs_scored += 1
+			bases = [false, false, false]
+		_:
+			outs = mini(3, outs + 1)
+
+	return {
+		"bases": bases,
+		"outs": outs,
+		"runs_scored": runs_scored,
+		"outs_on_play": maxi(0, outs - current_outs),
+		"play_note": play_note,
+	}
+
+func _get_at_bat_result_label(result: String) -> String:
+	match result:
+		"bunt_success":
+			return "送りバント"
+		"walk":
+			return "四球"
+		"single":
+			return "単打"
+		"double":
+			return "二塁打"
+		"triple":
+			return "三塁打"
+		"home_run":
+			return "本塁打"
+		"strikeout":
+			return "三振"
+		"fly_out":
+			return "外野フライ"
+		"ground_out":
+			return "内野ゴロ"
+		"double_play":
+			return "併殺打"
+		_:
+			return "凡打"
 
 func _distribute_runs_by_inning(total_runs: int) -> Array[int]:
 	var innings: Array[int] = []
@@ -267,12 +1017,12 @@ func _calc_handedness_bonus(batter, opposing_pitcher) -> float:
 
 func _get_pitcher_hand_label(pitcher) -> String:
 	if pitcher == null:
-		return "右投手"
+		return "陷ｿ・ｳ隰壼｢鍋・"
 
 	if str(pitcher.throws) == "L":
-		return "左投手"
+		return "陝ｾ・ｦ隰壼｢鍋・"
 
-	return "右投手"
+	return "陷ｿ・ｳ隰壼｢鍋・"
 
 func _get_strategy_log_label(strategy: String) -> String:
 	match strategy:
