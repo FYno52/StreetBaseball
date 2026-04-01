@@ -21,6 +21,7 @@ var losing_pitcher_id: String = ""
 var save_pitcher_id: String = ""
 
 var log_lines: Array[String] = []
+var play_events: Array[Dictionary] = []
 
 func to_dict() -> Dictionary:
 	return {
@@ -40,7 +41,8 @@ func to_dict() -> Dictionary:
 		"winning_pitcher_id": winning_pitcher_id,
 		"losing_pitcher_id": losing_pitcher_id,
 		"save_pitcher_id": save_pitcher_id,
-		"log_lines": log_lines.duplicate()
+		"log_lines": log_lines.duplicate(),
+		"play_events": play_events.duplicate(true)
 	}
 
 static func from_dict(d: Dictionary):
@@ -66,5 +68,10 @@ static func from_dict(d: Dictionary):
 	g.log_lines.clear()
 	for value in d.get("log_lines", []):
 		g.log_lines.append(str(value))
+
+	g.play_events.clear()
+	for value in d.get("play_events", []):
+		if value is Dictionary:
+			g.play_events.append((value as Dictionary).duplicate(true))
 
 	return g

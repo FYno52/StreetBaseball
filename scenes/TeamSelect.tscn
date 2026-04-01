@@ -44,36 +44,59 @@ size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="TeamListScroll" type="ScrollContainer" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 280)
+[node name="ContentColumns" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
+
+[node name="LeftContentVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="TeamListScroll" type="ScrollContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
+custom_minimum_size = Vector2(0, 320)
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="TeamListVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/TeamListScroll"]
+[node name="TeamListVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/TeamListScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="SelectedTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="RightContentVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="SelectedTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
 layout_mode = 2
 text = ""
 
-[node name="SelectedTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 120)
+[node name="SelectedTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
+custom_minimum_size = Vector2(0, 220)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="ActionButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="StartNoteLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="ActionButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="LoadButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ActionButtonsHBox"]
+[node name="LoadButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/ActionButtonsHBox"]
 layout_mode = 2
 text = ""
 
-[node name="DecideButton" type="Button" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="DecideButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/ActionButtonsHBox"]
 layout_mode = 2
 disabled = true
 text = ""

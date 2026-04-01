@@ -9,19 +9,20 @@ const ROSTER_VIEW_SCENE_PATH := "res://scenes/RosterView.tscn"
 @onready var roster_view_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/RosterViewButton
 @onready var info_label: Label = $RootScroll/MarginContainer/RootVBox/InfoLabel
 @onready var team_list_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/TeamListScroll/TeamListVBox
-@onready var selected_team_title_label: Label = $RootScroll/MarginContainer/RootVBox/SelectedTeamTitleLabel
-@onready var selected_team_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SelectedTeamDetailLabel
-@onready var strategy_title_label: Label = $RootScroll/MarginContainer/RootVBox/StrategyTitleLabel
-@onready var strategy_status_label: Label = $RootScroll/MarginContainer/RootVBox/StrategyStatusLabel
-@onready var strategy_balanced_button: Button = $RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox/StrategyBalancedButton
-@onready var strategy_power_button: Button = $RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox/StrategyPowerButton
-@onready var strategy_speed_button: Button = $RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox/StrategySpeedButton
-@onready var strategy_defense_button: Button = $RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox/StrategyDefenseButton
-@onready var strategy_pitching_button: Button = $RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox/StrategyPitchingButton
-@onready var lineup_vs_r_title_label: Label = $RootScroll/MarginContainer/RootVBox/LineupVsRTitleLabel
-@onready var lineup_vs_r_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/LineupVsRVBox
-@onready var lineup_vs_l_title_label: Label = $RootScroll/MarginContainer/RootVBox/LineupVsLTitleLabel
-@onready var lineup_vs_l_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/LineupVsLVBox
+@onready var team_list_scroll: ScrollContainer = $RootScroll/MarginContainer/RootVBox/TeamListScroll
+@onready var selected_team_title_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/SelectedTeamCard/SelectedTeamTitleLabel
+@onready var selected_team_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/SelectedTeamCard/SelectedTeamDetailLabel
+@onready var strategy_title_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/StrategyCard/StrategyTitleLabel
+@onready var strategy_status_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/StrategyCard/StrategyStatusLabel
+@onready var strategy_balanced_button: Button = $RootScroll/MarginContainer/RootVBox/SummaryGrid/StrategyCard/StrategyButtonsHBox/StrategyBalancedButton
+@onready var strategy_power_button: Button = $RootScroll/MarginContainer/RootVBox/SummaryGrid/StrategyCard/StrategyButtonsHBox/StrategyPowerButton
+@onready var strategy_speed_button: Button = $RootScroll/MarginContainer/RootVBox/SummaryGrid/StrategyCard/StrategyButtonsHBox/StrategySpeedButton
+@onready var strategy_defense_button: Button = $RootScroll/MarginContainer/RootVBox/SummaryGrid/StrategyCard/StrategyButtonsHBox/StrategyDefenseButton
+@onready var strategy_pitching_button: Button = $RootScroll/MarginContainer/RootVBox/SummaryGrid/StrategyCard/StrategyButtonsHBox/StrategyPitchingButton
+@onready var lineup_vs_r_title_label: Label = $RootScroll/MarginContainer/RootVBox/LineupColumns/LineupRightCard/LineupVsRTitleLabel
+@onready var lineup_vs_r_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/LineupColumns/LineupRightCard/LineupVsRVBox
+@onready var lineup_vs_l_title_label: Label = $RootScroll/MarginContainer/RootVBox/LineupColumns/LineupLeftCard/LineupVsLTitleLabel
+@onready var lineup_vs_l_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/LineupColumns/LineupLeftCard/LineupVsLVBox
 @onready var edit_title_label: Label = $RootScroll/MarginContainer/RootVBox/EditTitleLabel
 @onready var edit_vs_r_button: Button = $RootScroll/MarginContainer/RootVBox/EditButtonsHBox/EditVsRButton
 @onready var edit_vs_l_button: Button = $RootScroll/MarginContainer/RootVBox/EditButtonsHBox/EditVsLButton
@@ -53,7 +54,6 @@ func _ready() -> void:
 	back_button.text = "ホームへ戻る"
 	set_controlled_team_button.text = "担当球団にする"
 	roster_view_button.text = "選手一覧へ"
-	info_label.text = "担当球団の編成と方針を調整できます。"
 	selected_team_title_label.text = "チーム詳細"
 	strategy_title_label.text = "チーム方針"
 	lineup_vs_r_title_label.text = "対右投手スタメン"
@@ -103,20 +103,13 @@ func _refresh_view() -> void:
 	for child in team_list_vbox.get_children():
 		child.queue_free()
 
-	if team_list_vbox.visible:
+	if team_list_scroll.visible:
 		var summaries: Array = LeagueState.get_league_team_summaries()
 		for index in range(summaries.size()):
 			var summary: Dictionary = summaries[index]
 			var button: Button = Button.new()
 			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			button.text = "%d. %s  %s勝 %s敗 %s分  勝率 %.3f" % [
-				index + 1,
-				str(summary["name"]),
-				str(summary["wins"]),
-				str(summary["losses"]),
-				str(summary["draws"]),
-				float(summary["win_pct"])
-			]
+			button.text = "%d. %s  %s勝 %s敗 %s分  勝率 %.3f" % [index + 1, str(summary["name"]), str(summary["wins"]), str(summary["losses"]), str(summary["draws"]), float(summary["win_pct"])]
 			button.pressed.connect(_on_team_button_pressed.bind(str(summary["id"])))
 			team_list_vbox.add_child(button)
 
@@ -129,7 +122,6 @@ func _refresh_view() -> void:
 
 func _apply_controlled_team_mode() -> void:
 	var has_controlled_team: bool = LeagueState.controlled_team_id != ""
-	var team_list_scroll: Node = $RootScroll/MarginContainer/RootVBox/TeamListScroll
 	if has_controlled_team:
 		if selected_team_id == "":
 			selected_team_id = LeagueState.controlled_team_id
@@ -155,7 +147,7 @@ func _on_set_controlled_team_button_pressed() -> void:
 	var team: TeamData = LeagueState.get_team(selected_team_id)
 	if team != null:
 		info_label.text = "担当球団を %s に設定しました。" % team.name
-	_refresh_selected_team_detail()
+	_refresh_view()
 
 func _on_team_button_pressed(team_id: String) -> void:
 	selected_team_id = team_id
@@ -163,7 +155,6 @@ func _on_team_button_pressed(team_id: String) -> void:
 	selected_lineup_index = -1
 	selected_rotation_index = -1
 	bullpen_edit_target = ""
-
 	var team: TeamData = LeagueState.get_team(team_id)
 	if team != null:
 		var controlled_text: String = ""
@@ -172,7 +163,6 @@ func _on_team_button_pressed(team_id: String) -> void:
 		info_label.text = "選択中のチーム: %s%s" % [team.name, controlled_text]
 	else:
 		info_label.text = "チームデータが見つかりません。"
-
 	_refresh_selected_team_detail()
 	_refresh_strategy_editor()
 	_refresh_selected_team_lineups()
@@ -237,18 +227,7 @@ func _refresh_selected_team_detail() -> void:
 	var team_name: String = team.name
 	if LeagueState.controlled_team_id == selected_team_id:
 		team_name += " (担当球団)"
-	selected_team_detail_label.text = "チーム名: %s\n戦績: %s勝 %s敗 %s分\nファン人気: %d\n予算: %d\n方針: %s\n打撃力: %.2f\n投手力: %.2f\n総合力: %.2f" % [
-		team_name,
-		str(team.standings["wins"]),
-		str(team.standings["losses"]),
-		str(team.standings["draws"]),
-		int(team.fan_support),
-		int(team.budget),
-		_get_strategy_label(str(team.strategy)),
-		attack,
-		pitch_value,
-		total
-	]
+	selected_team_detail_label.text = "チーム名: %s\n戦績: %s勝 %s敗 %s分\nファン人気: %d\n予算: %d\n方針: %s\n打撃力: %.2f\n投手力: %.2f\n総合力: %.2f" % [team_name, str(team.standings["wins"]), str(team.standings["losses"]), str(team.standings["draws"]), int(team.fan_support), int(team.budget), _get_strategy_label(str(team.strategy)), attack, pitch_value, total]
 
 func _refresh_selected_team_lineups() -> void:
 	for child in lineup_vs_r_vbox.get_children():
@@ -274,15 +253,7 @@ func _populate_lineup_buttons(container: VBoxContainer, lineup_ids: Array[String
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.toggle_mode = true
 		button.button_pressed = lineup_edit_target == mode and selected_lineup_index == index
-		button.text = "%d. %s  %s  打率 %.3f  安打 %s  本 %s  点 %s" % [
-			index + 1,
-			player.full_name,
-			player.primary_position,
-			player.get_batting_average(),
-			str(player.batting_stats["h"]),
-			str(player.batting_stats["hr"]),
-			str(player.batting_stats["rbi"])
-		]
+		button.text = "%d. %s  %s  打率 %.3f  安打 %s  本 %s  点 %s" % [index + 1, player.full_name, player.primary_position, player.get_batting_average(), str(player.batting_stats["h"]), str(player.batting_stats["hr"]), str(player.batting_stats["rbi"])]
 		button.pressed.connect(_on_lineup_slot_pressed.bind(mode, index))
 		container.add_child(button)
 
@@ -376,6 +347,7 @@ func _refresh_selected_team_rotation() -> void:
 		return
 	var team: TeamData = LeagueState.get_team(selected_team_id)
 	if team == null:
+		rotation_editor_status_label.text = "チームデータが見つかりません。"
 		return
 	rotation_editor_status_label.text = "入れ替えたい投手を2人選ぶと順番が入れ替わります。"
 	for index in range(team.rotation_ids.size()):
@@ -386,14 +358,7 @@ func _refresh_selected_team_rotation() -> void:
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.toggle_mode = true
 		button.button_pressed = selected_rotation_index == index
-		button.text = "%d. %s  防御率 %.2f  %s勝 %s敗  奪三振 %s" % [
-			index + 1,
-			player.full_name,
-			player.get_era(),
-			str(player.pitching_stats["wins"]),
-			str(player.pitching_stats["losses"]),
-			str(player.pitching_stats["so"])
-		]
+		button.text = "%d. %s  防御率 %.2f  %s勝 %s敗  奪三振 %s" % [index + 1, player.full_name, player.get_era(), str(player.pitching_stats["wins"]), str(player.pitching_stats["losses"]), str(player.pitching_stats["so"])]
 		button.pressed.connect(_on_rotation_slot_pressed.bind(index))
 		rotation_vbox.add_child(button)
 
@@ -426,6 +391,8 @@ func _refresh_selected_team_bullpen() -> void:
 	var bullpen: Dictionary = LeagueState.get_team_bullpen(selected_team_id)
 	var team: TeamData = LeagueState.get_team(selected_team_id)
 	if team == null:
+		bullpen_detail_label.text = "チームデータが見つかりません。"
+		bullpen_editor_status_label.text = "チームデータが見つかりません。"
 		return
 	var lines: Array[String] = []
 	var closer: PlayerData = bullpen.get("closer", null)
@@ -449,12 +416,7 @@ func _refresh_selected_team_bullpen() -> void:
 		var button: Button = Button.new()
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.disabled = bullpen_edit_target == ""
-		button.text = "%s  %s  防御率 %.2f  奪三振 %s" % [
-			pitcher.full_name,
-			role_label,
-			pitcher.get_era(),
-			str(pitcher.pitching_stats["so"])
-		]
+		button.text = "%s  %s  防御率 %.2f  奪三振 %s" % [pitcher.full_name, role_label, pitcher.get_era(), str(pitcher.pitching_stats["so"])]
 		button.pressed.connect(_on_bullpen_pitcher_pressed.bind(str(pitcher.id)))
 		bullpen_pitchers_vbox.add_child(button)
 

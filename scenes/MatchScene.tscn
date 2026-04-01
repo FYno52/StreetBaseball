@@ -1,0 +1,187 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/match_scene.gd" id="1_match"]
+
+[node name="MatchScene" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_match")
+
+[node name="RootScroll" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="RootScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="RootVBox" type="VBoxContainer" parent="RootScroll/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+text = ""
+
+[node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BackButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="AutoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="HeaderInfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="TopColumns" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
+
+[node name="ScoreCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/TopColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ScoreTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopColumns/ScoreCard"]
+layout_mode = 2
+text = ""
+
+[node name="ScoreDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopColumns/ScoreCard"]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="StatusCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/TopColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ProgressTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopColumns/StatusCard"]
+layout_mode = 2
+text = ""
+
+[node name="ProgressDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopColumns/StatusCard"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="InningTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopColumns/StatusCard"]
+layout_mode = 2
+text = ""
+
+[node name="InningDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopColumns/StatusCard"]
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="BaseTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopColumns/StatusCard"]
+layout_mode = 2
+text = ""
+
+[node name="BaseDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopColumns/StatusCard"]
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="ControlButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PreviousButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ControlButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="NextButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ControlButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="MainColumns" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
+
+[node name="LeftVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/MainColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/MainColumns/LeftVBox"]
+layout_mode = 2
+text = ""
+
+[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/MainColumns/LeftVBox"]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="LogTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/MainColumns/LeftVBox"]
+layout_mode = 2
+text = ""
+
+[node name="LogDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/MainColumns/LeftVBox"]
+custom_minimum_size = Vector2(0, 240)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="RightVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/MainColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="LineScoreTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/MainColumns/RightVBox"]
+layout_mode = 2
+text = ""
+
+[node name="LineScoreDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/MainColumns/RightVBox"]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="NoteTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/MainColumns/RightVBox"]
+layout_mode = 2
+text = ""
+
+[node name="NoteDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/MainColumns/RightVBox"]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3

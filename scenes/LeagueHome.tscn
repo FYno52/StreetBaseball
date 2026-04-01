@@ -1,17 +1,17 @@
-[gd_scene format=3 uid="uid://dcfxaqb628fv1"]
+[gd_scene format=3]
 
-[ext_resource type="Script" uid="uid://hsxxi36cltp4" path="res://scripts/league_home.gd" id="1_8gnlg"]
+[ext_resource type="Script" path="res://scripts/league_home.gd" id="1_home"]
 
-[node name="LeagueHome" type="Control" unique_id=227564448]
+[node name="LeagueHome" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_8gnlg")
+script = ExtResource("1_home")
 
-[node name="RootScroll" type="ScrollContainer" parent="." unique_id=403730498]
+[node name="RootScroll" type="ScrollContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -19,7 +19,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="RootScroll" unique_id=1811685292]
+[node name="MarginContainer" type="MarginContainer" parent="RootScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -28,374 +28,218 @@ theme_override_constants/margin_top = 20
 theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 20
 
-[node name="RootVBox" type="VBoxContainer" parent="RootScroll/MarginContainer" unique_id=1385467560]
+[node name="RootVBox" type="VBoxContainer" parent="RootScroll/MarginContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1807036526]
+[node name="TitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 text = ""
 
-[node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1412835132]
+[node name="NavInfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="TeamManagementButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox" unique_id=169068450]
+[node name="TeamManagementButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
 layout_mode = 2
+text = ""
 
-[node name="LeagueInfoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox" unique_id=36964570]
+[node name="LeagueInfoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
 layout_mode = 2
+text = ""
 
 [node name="RosterButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
 layout_mode = 2
-
-[node name="SimDayButton" type="Button" parent="RootScroll/MarginContainer/RootVBox" unique_id=181034300]
-layout_mode = 2
 text = ""
 
-[node name="SimButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="ProgressCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="ProgressButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ProgressCard"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SimWeekButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SimButtonsHBox"]
+[node name="SimDayButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox"]
 layout_mode = 2
 text = ""
 
-[node name="SimAutoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SimButtonsHBox"]
+[node name="SimWeekButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox"]
 layout_mode = 2
 text = ""
 
-[node name="SimToNextGameButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SimButtonsHBox"]
+[node name="SimAutoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox"]
 layout_mode = 2
 text = ""
 
-[node name="SimToSeasonEndButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SimButtonsHBox"]
+[node name="SimToNextGameButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox"]
 layout_mode = 2
 text = ""
 
-[node name="SaveButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1222186583]
+[node name="SimToSeasonEndButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="SaveButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ProgressCard"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SaveButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SaveButtonsHBox" unique_id=992151726]
+[node name="SaveButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProgressCard/SaveButtonsHBox"]
 layout_mode = 2
 text = ""
 
-[node name="LoadButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SaveButtonsHBox" unique_id=779434290]
+[node name="LoadButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProgressCard/SaveButtonsHBox"]
 layout_mode = 2
 text = ""
 
-[node name="NewSeasonButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SaveButtonsHBox" unique_id=354081826]
-layout_mode = 2
-disabled = true
-text = ""
-
-[node name="SaveStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1729330945]
-custom_minimum_size = Vector2(0, 32)
+[node name="ProgressStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ProgressCard"]
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="SummaryColumns" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="SummaryGrid" type="GridContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 16
+columns = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 12
 
-[node name="LeftSummaryVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns"]
+[node name="SeasonStatusCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
-[node name="RightSummaryVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="SeasonStatusTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1071227978]
+[node name="SeasonStatusTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonStatusCard"]
 layout_mode = 2
 text = ""
 
-[node name="SeasonStatusDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1167893880]
-custom_minimum_size = Vector2(0, 140)
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="LeadersTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1933565135]
-layout_mode = 2
-text = ""
-
-[node name="BattingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1500405676]
+[node name="SeasonStatusDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonStatusCard"]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="PitchingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1987552606]
+[node name="FocusTeamCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="FocusTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/FocusTeamCard"]
+layout_mode = 2
+text = ""
+
+[node name="FocusTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/FocusTeamCard"]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=1145562421]
+[node name="TodayCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="TodayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/TodayCard"]
 layout_mode = 2
 text = ""
 
-[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=1811585404]
-custom_minimum_size = Vector2(0, 140)
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="DigestTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=154753980]
-layout_mode = 2
-
-[node name="DigestDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=927218727]
-custom_minimum_size = Vector2(0, 120)
-layout_mode = 2
-size_flags_horizontal = 3
-autowrap_mode = 3
-
-[node name="FocusTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1682173533]
-layout_mode = 2
-
-[node name="FocusTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1392245870]
+[node name="TodayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/TodayCard"]
 custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
 size_flags_horizontal = 3
-autowrap_mode = 3
-
-[node name="TodayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1654827853]
-layout_mode = 2
-
-[node name="TodayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=599339737]
-custom_minimum_size = Vector2(0, 120)
-layout_mode = 2
-size_flags_horizontal = 3
-autowrap_mode = 3
-
-[node name="YesterdayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=1382465170]
-layout_mode = 2
-
-[node name="YesterdayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=987433906]
-custom_minimum_size = Vector2(0, 120)
-layout_mode = 2
-size_flags_horizontal = 3
-autowrap_mode = 3
-
-[node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=977566212]
-custom_minimum_size = Vector2(0, 32)
-layout_mode = 2
-size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="TeamListScroll" type="ScrollContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1061959055]
-custom_minimum_size = Vector2(0, 300)
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="TeamListVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/TeamListScroll" unique_id=1277563580]
+[node name="YesterdayCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="SelectedTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=654936110]
+[node name="YesterdayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/YesterdayCard"]
 layout_mode = 2
 text = ""
 
-[node name="SelectedTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=261534439]
-custom_minimum_size = Vector2(0, 104)
+[node name="YesterdayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/YesterdayCard"]
+custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="StrategyTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1214308267]
-layout_mode = 2
-text = ""
-
-[node name="StrategyStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1131013616]
-custom_minimum_size = Vector2(0, 52)
+[node name="ContentColumns" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
+theme_override_constants/separation = 20
 
-[node name="StrategyButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=568636203]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="StrategyBalancedButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=1591878393]
-layout_mode = 2
-text = ""
-
-[node name="StrategyPowerButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=1654037342]
-layout_mode = 2
-text = ""
-
-[node name="StrategySpeedButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=6787698]
-layout_mode = 2
-text = ""
-
-[node name="StrategyDefenseButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=73006166]
-layout_mode = 2
-text = ""
-
-[node name="StrategyPitchingButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StrategyButtonsHBox" unique_id=1829676026]
-layout_mode = 2
-text = ""
-
-[node name="LineupVsRTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=237844217]
-layout_mode = 2
-text = ""
-
-[node name="LineupVsRVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=2019718644]
+[node name="LeftContentVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 6
+theme_override_constants/separation = 12
 
-[node name="LineupVsLTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=497599368]
+[node name="DigestTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
 layout_mode = 2
 text = ""
 
-[node name="LineupVsLVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1306217698]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="EditTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=257951064]
-layout_mode = 2
-text = ""
-
-[node name="EditButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=1141288537]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="EditVsRButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/EditButtonsHBox" unique_id=312634944]
-layout_mode = 2
-text = ""
-
-[node name="EditVsLButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/EditButtonsHBox" unique_id=568409700]
-layout_mode = 2
-text = ""
-
-[node name="CancelEditButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/EditButtonsHBox" unique_id=449494130]
-layout_mode = 2
-text = ""
-
-[node name="EditorStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=2040869272]
-custom_minimum_size = Vector2(0, 52)
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="BenchTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=211922786]
-layout_mode = 2
-text = ""
-
-[node name="BenchVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=599193298]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="RotationTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1336810749]
-layout_mode = 2
-text = ""
-
-[node name="RotationEditorStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1119853119]
-custom_minimum_size = Vector2(0, 52)
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="RotationVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=74708365]
-custom_minimum_size = Vector2(0, 140)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="BullpenTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=210419684]
-layout_mode = 2
-text = ""
-
-[node name="BullpenDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=15170208]
+[node name="DigestDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
 custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="BullpenEditorStatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1695085939]
-custom_minimum_size = Vector2(0, 52)
+[node name="LeadersTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
+layout_mode = 2
+text = ""
+
+[node name="BattingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="BullpenRoleButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=2127529657]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="BullpenAutoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=1925088532]
-layout_mode = 2
-text = ""
-
-[node name="BullpenCloserButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=1181383206]
-layout_mode = 2
-text = ""
-
-[node name="BullpenSetupButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=286472751]
-layout_mode = 2
-text = ""
-
-[node name="BullpenMiddleButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=1108274127]
-layout_mode = 2
-text = ""
-
-[node name="BullpenLongButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/BullpenRoleButtonsHBox" unique_id=649688248]
-layout_mode = 2
-text = ""
-
-[node name="BullpenPitchersVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=2003699582]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="RecentGamesTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1189537524]
-layout_mode = 2
-text = ""
-
-[node name="RecentGamesVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox" unique_id=2120954436]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="DecisionTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=2057317972]
-layout_mode = 2
-text = ""
-
-[node name="DecisionDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=309672469]
-custom_minimum_size = Vector2(0, 72)
+[node name="PitchingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="DetailedLogTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1250882700]
+[node name="RightContentVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
 layout_mode = 2
 text = ""
 
-[node name="DetailedLogDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1782508589]
-custom_minimum_size = Vector2(0, 220)
+[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
+custom_minimum_size = Vector2(0, 160)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="NoteTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
+layout_mode = 2
+text = ""
+
+[node name="NoteDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""

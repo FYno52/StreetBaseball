@@ -17,6 +17,7 @@ var season_year: int = START_SEASON_YEAR
 var current_day: int = 1
 var controlled_team_id: String = ""
 var selected_player_id: String = ""
+var selected_game_id: String = ""
 
 # team_id -> TeamData
 var teams: Dictionary = {}
@@ -48,6 +49,7 @@ func reset() -> void:
 	current_day = 1
 	controlled_team_id = ""
 	selected_player_id = ""
+	selected_game_id = ""
 	teams.clear()
 	players.clear()
 	schedule.clear()
@@ -74,6 +76,7 @@ func new_game() -> void:
 
 	_normalize_all_teams()
 	_generate_schedule()
+	_normalize_schedule_metadata()
 
 func start_new_season() -> Array[String]:
 	var previous_year: int = season_year
@@ -99,6 +102,7 @@ func start_new_season() -> Array[String]:
 
 	_normalize_all_teams()
 	_generate_schedule()
+	_normalize_schedule_metadata()
 	return last_offseason_report.duplicate()
 
 func set_controlled_team(team_id: String) -> void:
@@ -115,6 +119,18 @@ func get_selected_player() -> PlayerData:
 	if selected_player_id == "":
 		return null
 	return get_player(selected_player_id)
+
+func set_selected_game(game_id: String) -> void:
+	selected_game_id = game_id
+
+func get_selected_game():
+	if selected_game_id == "":
+		return null
+	for game_value in schedule:
+		var game: GameData = game_value
+		if game != null and str(game.id) == selected_game_id:
+			return game
+	return null
 
 func get_controlled_team() -> TeamData:
 	if controlled_team_id == "":
@@ -400,6 +416,19 @@ func get_date_info_for_day(day: int) -> Dictionary:
 		"weekday_name": WEEKDAY_NAMES[weekday_index],
 		"date_label": _build_date_label(year, month, day_of_month, weekday_index)
 	}
+
+func _normalize_schedule_metadata() -> void:
+	for game_value in schedule:
+		var game: GameData = game_value
+		if game == null:
+			continue
+		var date_info: Dictionary = get_date_info_for_day(int(game.day))
+		game.season_year = int(date_info.get("year", season_year))
+		game.month = int(date_info.get("month", CALENDAR_START_MONTH))
+		game.day_of_month = int(date_info.get("day", CALENDAR_START_DAY))
+		game.weekday_index = int(date_info.get("weekday_index", 0))
+		game.weekday_name = str(date_info.get("weekday_name", ""))
+		game.date_label = str(date_info.get("date_label", ""))
 
 func get_current_date_label() -> String:
 	return get_date_label_for_day(current_day)
@@ -912,12 +941,16 @@ func get_last_day() -> int:
 	return 366 if _is_leap_year(season_year) else 365
 
 func get_first_game_day() -> int:
+	if schedule.is_empty():
+		return 1
 	var first_day: int = get_last_day()
 	for game in schedule:
 		first_day = mini(first_day, int(game.day))
 	return first_day
 
 func get_final_game_day() -> int:
+	if schedule.is_empty():
+		return 1
 	var final_day: int = 1
 	for game in schedule:
 		final_day = maxi(final_day, int(game.day))
@@ -1577,6 +1610,13 @@ func load_from_dict(data: Dictionary) -> void:
 	var raw_schedule: Array = data.get("schedule", [])
 	for raw_game in raw_schedule:
 		schedule.append(GAME_DATA_SCRIPT.from_dict(raw_game))
+
+	if schedule.is_empty():
+		_generate_schedule()
+
+	_normalize_schedule_metadata()
+
+	current_day = clampi(current_day, 1, get_last_day())
 
 	_normalize_all_teams()
 

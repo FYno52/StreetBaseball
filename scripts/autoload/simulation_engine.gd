@@ -13,6 +13,7 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 			"away_score": game.away_score,
 			"home_score": game.home_score,
 			"log_lines": game.log_lines,
+			"play_events": game.play_events,
 		}
 
 	var away_starter = LeagueState.get_starting_pitcher_for_day(str(away_team.id), int(game.day))
@@ -102,6 +103,7 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 	game.log_lines.clear()
 	for line in log_lines:
 		game.log_lines.append(line)
+	game.play_events = _build_game_event_sequence(game, away_team, home_team, away_score, home_score, away_plan, home_plan)
 
 	_apply_team_result(away_team, home_team, away_score, home_score)
 	_apply_minimal_player_stats(away_team, home_team, away_score, home_score, away_lineup_ids, home_lineup_ids, away_plan, home_plan)
@@ -112,7 +114,106 @@ func simulate_game(game, away_team, home_team) -> Dictionary:
 		"away_score": away_score,
 		"home_score": home_score,
 		"log_lines": log_lines,
+		"play_events": game.play_events,
 	}
+
+func _build_game_event_sequence(game, away_team, home_team, away_score: int, home_score: int, away_plan: Array, home_plan: Array) -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	events.append({
+		"type": "game_start",
+		"game_id": str(game.id),
+		"date_label": str(game.date_label),
+		"away_team_id": str(away_team.id),
+		"away_team_name": str(away_team.name),
+		"home_team_id": str(home_team.id),
+		"home_team_name": str(home_team.name),
+	})
+
+	var away_by_inning: Array[int] = _distribute_runs_by_inning(away_score)
+	var home_by_inning: Array[int] = _distribute_runs_by_inning(home_score)
+	var away_total: int = 0
+	var home_total: int = 0
+
+	for inning in range(9):
+		var away_runs: int = away_by_inning[inning]
+		var home_runs: int = home_by_inning[inning]
+		away_total += away_runs
+		home_total += home_runs
+
+		events.append({
+			"type": "half_inning",
+			"inning": inning + 1,
+			"side": "top",
+			"runs_scored": away_runs,
+			"away_score": away_total,
+			"home_score": home_total,
+			"outs": 3,
+			"offense_team_id": str(away_team.id),
+			"offense_team_name": str(away_team.name),
+		})
+		events.append({
+			"type": "half_inning",
+			"inning": inning + 1,
+			"side": "bottom",
+			"runs_scored": home_runs,
+			"away_score": away_total,
+			"home_score": home_total,
+			"outs": 3,
+			"offense_team_id": str(home_team.id),
+			"offense_team_name": str(home_team.name),
+		})
+
+	events.append({
+		"type": "pitching_summary",
+		"side": "away",
+		"pitchers": _build_pitching_event_rows(away_plan),
+	})
+	events.append({
+		"type": "pitching_summary",
+		"side": "home",
+		"pitchers": _build_pitching_event_rows(home_plan),
+	})
+	events.append({
+		"type": "game_end",
+		"away_score": away_score,
+		"home_score": home_score,
+		"winning_pitcher_id": str(game.winning_pitcher_id),
+		"losing_pitcher_id": str(game.losing_pitcher_id),
+		"save_pitcher_id": str(game.save_pitcher_id),
+	})
+	return events
+
+func _distribute_runs_by_inning(total_runs: int) -> Array[int]:
+	var innings: Array[int] = []
+	for _inning in range(9):
+		innings.append(0)
+
+	var remaining_runs: int = total_runs
+	while remaining_runs > 0:
+		var target_inning: int = rng.randi_range(0, 8)
+		innings[target_inning] += 1
+		remaining_runs -= 1
+
+	return innings
+
+func _build_pitching_event_rows(plan: Array) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for outing_value in plan:
+		var outing: Dictionary = outing_value
+		var pitcher = outing.get("pitcher", null)
+		if pitcher == null:
+			continue
+		rows.append({
+			"pitcher_id": str(pitcher.id),
+			"pitcher_name": str(pitcher.full_name),
+			"outs": int(outing.get("outs", 0)),
+			"earned_runs": int(outing.get("er", 0)),
+			"is_starter": bool(outing.get("gs", false)),
+			"decision": str(outing.get("decision", "none")),
+			"save": bool(outing.get("save", false)),
+			"hold": bool(outing.get("hold", false)),
+		})
+	return rows
 
 func _get_lineup_ids_for_matchup(team, opposing_pitcher) -> Array[String]:
 	if team == null:

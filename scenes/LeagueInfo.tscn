@@ -64,21 +64,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="ControlledTeamCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="SeasonStatusCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="SeasonHistoryCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
 [node name="OverviewTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/OverviewCard"]
 layout_mode = 2
 text = ""
@@ -89,6 +74,11 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
+
+[node name="ControlledTeamCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
 
 [node name="ControlledTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/ControlledTeamCard"]
 layout_mode = 2
@@ -101,6 +91,11 @@ size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
+[node name="SeasonStatusCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
 [node name="SeasonStatusTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonStatusCard"]
 layout_mode = 2
 text = ""
@@ -111,6 +106,11 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
+
+[node name="SeasonHistoryCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
 
 [node name="SeasonHistoryTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonHistoryCard"]
 layout_mode = 2
@@ -123,79 +123,95 @@ size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="LeadersTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="ContentColumns" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 0
+theme_override_constants/separation = 20
+
+[node name="LeftContentVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="RightContentVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="LeadersTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
 layout_mode = 2
 text = ""
 
-[node name="BattingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="BattingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="PitchingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="PitchingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
 layout_mode = 2
 text = ""
 
-[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
 custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="ScheduleTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="StandingsTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
 layout_mode = 2
 text = ""
 
-[node name="ScheduleVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 220)
+[node name="StandingsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ScheduleTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
+layout_mode = 2
+text = ""
+
+[node name="ScheduleVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
+custom_minimum_size = Vector2(0, 240)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="StandingsTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="RecentGamesTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
 layout_mode = 2
 text = ""
 
-[node name="StandingsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="RecentGamesVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="RecentGamesTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="DecisionTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
 layout_mode = 2
 text = ""
 
-[node name="RecentGamesVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="DecisionTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="DecisionDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="DecisionDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="DetailedLogTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="DetailedLogTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
 layout_mode = 2
 text = ""
 
-[node name="DetailedLogDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="DetailedLogDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
 custom_minimum_size = Vector2(0, 220)
 layout_mode = 2
 size_flags_horizontal = 3

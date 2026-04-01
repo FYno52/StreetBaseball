@@ -1,6 +1,7 @@
 ﻿extends Control
 
 const HOME_SCENE_PATH := "res://scenes/LeagueHome.tscn"
+const GAME_DETAIL_SCENE_PATH := "res://scenes/GameDetail.tscn"
 
 @onready var title_label: Label = $RootScroll/MarginContainer/RootVBox/TitleLabel
 @onready var back_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/BackButton
@@ -13,21 +14,21 @@ const HOME_SCENE_PATH := "res://scenes/LeagueHome.tscn"
 @onready var season_status_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonStatusCard/SeasonStatusDetailLabel
 @onready var season_history_title_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonHistoryCard/SeasonHistoryTitleLabel
 @onready var season_history_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonHistoryCard/SeasonHistoryDetailLabel
-@onready var leaders_title_label: Label = $RootScroll/MarginContainer/RootVBox/LeadersTitleLabel
-@onready var batting_leaders_label: Label = $RootScroll/MarginContainer/RootVBox/BattingLeadersLabel
-@onready var pitching_leaders_label: Label = $RootScroll/MarginContainer/RootVBox/PitchingLeadersLabel
-@onready var event_title_label: Label = $RootScroll/MarginContainer/RootVBox/EventTitleLabel
-@onready var event_detail_label: Label = $RootScroll/MarginContainer/RootVBox/EventDetailLabel
-@onready var schedule_title_label: Label = $RootScroll/MarginContainer/RootVBox/ScheduleTitleLabel
-@onready var schedule_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/ScheduleVBox
-@onready var standings_title_label: Label = $RootScroll/MarginContainer/RootVBox/StandingsTitleLabel
-@onready var standings_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/StandingsVBox
-@onready var recent_games_title_label: Label = $RootScroll/MarginContainer/RootVBox/RecentGamesTitleLabel
-@onready var recent_games_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/RecentGamesVBox
-@onready var decision_title_label: Label = $RootScroll/MarginContainer/RootVBox/DecisionTitleLabel
-@onready var decision_detail_label: Label = $RootScroll/MarginContainer/RootVBox/DecisionDetailLabel
-@onready var detailed_log_title_label: Label = $RootScroll/MarginContainer/RootVBox/DetailedLogTitleLabel
-@onready var detailed_log_detail_label: Label = $RootScroll/MarginContainer/RootVBox/DetailedLogDetailLabel
+@onready var leaders_title_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/LeadersTitleLabel
+@onready var batting_leaders_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/BattingLeadersLabel
+@onready var pitching_leaders_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/PitchingLeadersLabel
+@onready var event_title_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/EventTitleLabel
+@onready var event_detail_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/EventDetailLabel
+@onready var standings_title_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/StandingsTitleLabel
+@onready var standings_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/StandingsVBox
+@onready var schedule_title_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/ScheduleTitleLabel
+@onready var schedule_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/ScheduleVBox
+@onready var recent_games_title_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/RecentGamesTitleLabel
+@onready var recent_games_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/RecentGamesVBox
+@onready var decision_title_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/DecisionTitleLabel
+@onready var decision_detail_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/DecisionDetailLabel
+@onready var detailed_log_title_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/DetailedLogTitleLabel
+@onready var detailed_log_detail_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/DetailedLogDetailLabel
 
 var selected_game_id: String = ""
 var recent_game_ids: Array[String] = []
@@ -585,6 +586,10 @@ func _on_recent_game_pressed(game_id: String) -> void:
 	_refresh_controlled_team_schedule()
 	_refresh_decision_summary()
 	_refresh_detailed_log()
+	var game = _get_game_by_id(game_id)
+	if game != null:
+		LeagueState.set_selected_game(game_id)
+		get_tree().call_deferred("change_scene_to_file", GAME_DETAIL_SCENE_PATH)
 
 func _refresh_decision_summary() -> void:
 	if selected_game_id == "":

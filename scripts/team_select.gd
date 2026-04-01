@@ -4,11 +4,12 @@ const HOME_SCENE_PATH := "res://scenes/LeagueHome.tscn"
 
 @onready var title_label: Label = $RootScroll/MarginContainer/RootVBox/TitleLabel
 @onready var info_label: Label = $RootScroll/MarginContainer/RootVBox/InfoLabel
-@onready var team_list_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/TeamListScroll/TeamListVBox
-@onready var selected_team_title_label: Label = $RootScroll/MarginContainer/RootVBox/SelectedTeamTitleLabel
-@onready var selected_team_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SelectedTeamDetailLabel
-@onready var load_button: Button = $RootScroll/MarginContainer/RootVBox/ActionButtonsHBox/LoadButton
-@onready var decide_button: Button = $RootScroll/MarginContainer/RootVBox/DecideButton
+@onready var team_list_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/TeamListScroll/TeamListVBox
+@onready var selected_team_title_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/SelectedTeamTitleLabel
+@onready var selected_team_detail_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/SelectedTeamDetailLabel
+@onready var start_note_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/StartNoteLabel
+@onready var load_button: Button = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/ActionButtonsHBox/LoadButton
+@onready var decide_button: Button = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/ActionButtonsHBox/DecideButton
 
 var selected_team_id: String = ""
 
@@ -17,10 +18,12 @@ func _ready() -> void:
 		LeagueState.new_game()
 
 	title_label.text = "担当球団選択"
-	info_label.text = "まずは担当する球団を選んでください。ここで選んだ球団を中心にシーズンが進みます。"
+	info_label.text = "まずは担当する球団を選びます。ここで選んだ球団を中心に、365日進行のシーズンと複数年運営が進んでいきます。"
 	selected_team_title_label.text = "選択中の球団"
+	start_note_label.text = "開始すると、この球団を中心にホーム、チーム管理、リーグ情報が進行します。"
 	load_button.text = "セーブをロード"
 	decide_button.text = "この球団で始める"
+
 	load_button.pressed.connect(_on_load_button_pressed)
 	decide_button.pressed.connect(_on_decide_button_pressed)
 
@@ -38,7 +41,7 @@ func _refresh_team_list() -> void:
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.toggle_mode = true
 		button.button_pressed = selected_team_id == str(summary["id"])
-		button.text = "%d. %s  総合:%.1f  予算:%d  人気:%d" % [
+		button.text = "%d. %s  総合: %.1f  予算: %d  人気: %d" % [
 			i + 1,
 			str(summary["name"]),
 			float(summary["total"]),
