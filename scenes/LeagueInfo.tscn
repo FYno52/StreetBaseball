@@ -52,45 +52,72 @@ size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="OverviewTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="OverviewDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 72)
+[node name="SummaryGrid" type="GridContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
+columns = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 12
 
-[node name="ControlledTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="ControlledTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 96)
+[node name="OverviewCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
+theme_override_constants/separation = 6
 
-[node name="SeasonStatusTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="SeasonStatusDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 72)
+[node name="ControlledTeamCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
+theme_override_constants/separation = 6
 
-[node name="SeasonHistoryTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="SeasonStatusCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="SeasonHistoryCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="OverviewTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/OverviewCard"]
 layout_mode = 2
 text = ""
 
-[node name="SeasonHistoryDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="OverviewDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/OverviewCard"]
 custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="ControlledTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/ControlledTeamCard"]
+layout_mode = 2
+text = ""
+
+[node name="ControlledTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/ControlledTeamCard"]
+custom_minimum_size = Vector2(0, 160)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="SeasonStatusTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonStatusCard"]
+layout_mode = 2
+text = ""
+
+[node name="SeasonStatusDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonStatusCard"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="SeasonHistoryTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonHistoryCard"]
+layout_mode = 2
+text = ""
+
+[node name="SeasonHistoryDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonHistoryCard"]
+custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""

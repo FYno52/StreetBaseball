@@ -98,12 +98,27 @@ size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="SeasonStatusTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1071227978]
+[node name="SummaryColumns" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
+
+[node name="LeftSummaryVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="RightSummaryVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="SeasonStatusTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1071227978]
 layout_mode = 2
 text = ""
 
-[node name="SeasonStatusDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1167893880]
-custom_minimum_size = Vector2(0, 72)
+[node name="SeasonStatusDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1167893880]
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -127,49 +142,49 @@ size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1145562421]
+[node name="EventTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=1145562421]
 layout_mode = 2
 text = ""
 
-[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1811585404]
-custom_minimum_size = Vector2(0, 96)
+[node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=1811585404]
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="DigestTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=154753980]
+[node name="DigestTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=154753980]
 layout_mode = 2
 
-[node name="DigestDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=927218727]
-custom_minimum_size = Vector2(0, 96)
-layout_mode = 2
-size_flags_horizontal = 3
-autowrap_mode = 3
-
-[node name="FocusTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1682173533]
-layout_mode = 2
-
-[node name="FocusTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1392245870]
-custom_minimum_size = Vector2(0, 112)
+[node name="DigestDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=927218727]
+custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 size_flags_horizontal = 3
 autowrap_mode = 3
 
-[node name="TodayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1654827853]
+[node name="FocusTeamTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1682173533]
 layout_mode = 2
 
-[node name="TodayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=599339737]
-custom_minimum_size = Vector2(0, 96)
+[node name="FocusTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1392245870]
+custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
 size_flags_horizontal = 3
 autowrap_mode = 3
 
-[node name="YesterdayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=1382465170]
+[node name="TodayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=1654827853]
 layout_mode = 2
 
-[node name="YesterdayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox" unique_id=987433906]
-custom_minimum_size = Vector2(0, 96)
+[node name="TodayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/LeftSummaryVBox" unique_id=599339737]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+
+[node name="YesterdayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=1382465170]
+layout_mode = 2
+
+[node name="YesterdayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryColumns/RightSummaryVBox" unique_id=987433906]
+custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 size_flags_horizontal = 3
 autowrap_mode = 3
