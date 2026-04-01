@@ -32,6 +32,7 @@ var last_offseason_report: Array[String] = []
 var recent_finance_log: Array[String] = []
 var last_controlled_team_roster_log: Array[String] = []
 var latest_integrity_notes: Array[String] = []
+var season_history: Array[Dictionary] = []
 
 var team_master: Array[Dictionary] = [
 	{"id": "TKY", "name": "東京フェニックス"},
@@ -56,6 +57,7 @@ func reset() -> void:
 	recent_finance_log.clear()
 	last_controlled_team_roster_log.clear()
 	latest_integrity_notes.clear()
+	season_history.clear()
 
 func new_game() -> void:
 	reset()
@@ -75,13 +77,13 @@ func new_game() -> void:
 
 func start_new_season() -> Array[String]:
 	var previous_year: int = season_year
+	_archive_current_season(previous_year)
 	season_year += 1
 	current_day = 1
 	recent_events.clear()
 	daily_team_bonuses.clear()
 	last_offseason_report = _run_offseason(previous_year, season_year)
 	recent_finance_log.clear()
-	last_controlled_team_roster_log.clear()
 
 	for team_id in teams.keys():
 		var team = teams[team_id]
@@ -361,6 +363,19 @@ func get_games_for_day(day: int) -> Array:
 
 	return result
 
+func get_next_game_day(from_day: int, team_id: String = "") -> int:
+	var start_day: int = maxi(1, from_day)
+	for day in range(start_day, get_last_day() + 1):
+		var games: Array = get_games_for_day(day)
+		if games.is_empty():
+			continue
+		if team_id == "":
+			return day
+		for game in games:
+			if str(game.away_team_id) == team_id or str(game.home_team_id) == team_id:
+				return day
+	return -1
+
 func get_date_label_for_day(day: int) -> String:
 	return str(get_date_info_for_day(day).get("date_label", ""))
 
@@ -547,6 +562,74 @@ func get_recent_finance_log() -> Array[String]:
 
 func get_last_controlled_team_roster_log() -> Array[String]:
 	return last_controlled_team_roster_log.duplicate()
+
+func get_season_history() -> Array[Dictionary]:
+	return season_history.duplicate(true)
+
+func get_latest_completed_season_summary() -> Dictionary:
+	if season_history.is_empty():
+		return {}
+	return season_history[season_history.size() - 1].duplicate(true)
+
+func _archive_current_season(year: int) -> void:
+	if teams.is_empty():
+		return
+	var sorted_teams: Array = get_teams_sorted_by_win_pct()
+	if sorted_teams.is_empty():
+		return
+
+	var champion: TeamData = sorted_teams[0]
+	var last_place: TeamData = sorted_teams[sorted_teams.size() - 1]
+	var controlled_team: TeamData = get_controlled_team()
+	var batting: Dictionary = get_league_batting_leaders(1)
+	var pitching: Dictionary = get_league_pitching_leaders(1)
+
+	var summary: Dictionary = {
+		"year": year,
+		"champion_team_id": str(champion.id),
+		"champion_name": champion.name,
+		"last_place_team_id": str(last_place.id),
+		"last_place_name": last_place.name,
+		"controlled_team_id": controlled_team_id,
+		"controlled_team_name": controlled_team.name if controlled_team != null else "",
+		"controlled_wins": int(controlled_team.standings["wins"]) if controlled_team != null else 0,
+		"controlled_losses": int(controlled_team.standings["losses"]) if controlled_team != null else 0,
+		"controlled_draws": int(controlled_team.standings["draws"]) if controlled_team != null else 0,
+		"avg_leader_name": "",
+		"avg_leader_value": 0.0,
+		"hr_leader_name": "",
+		"hr_leader_value": 0,
+		"win_leader_name": "",
+		"win_leader_value": 0,
+		"save_leader_name": "",
+		"save_leader_value": 0
+	}
+
+	var avg_list: Array = batting.get("avg", [])
+	if not avg_list.is_empty():
+		var avg_player: PlayerData = avg_list[0]
+		summary["avg_leader_name"] = avg_player.full_name
+		summary["avg_leader_value"] = avg_player.get_batting_average()
+
+	var hr_list: Array = batting.get("hr", [])
+	if not hr_list.is_empty():
+		var hr_player: PlayerData = hr_list[0]
+		summary["hr_leader_name"] = hr_player.full_name
+		summary["hr_leader_value"] = int(hr_player.batting_stats["hr"])
+
+	var win_list: Array = pitching.get("wins", [])
+	if not win_list.is_empty():
+		var win_player: PlayerData = win_list[0]
+		summary["win_leader_name"] = win_player.full_name
+		summary["win_leader_value"] = int(win_player.pitching_stats["wins"])
+
+	var save_list: Array = pitching.get("saves", [])
+	if not save_list.is_empty():
+		var save_player: PlayerData = save_list[0]
+		summary["save_leader_name"] = save_player.full_name
+		summary["save_leader_value"] = int(save_player.pitching_stats["saves"])
+
+	season_history.append(summary)
 
 func _apply_daily_finances(day: int, games_today: Array) -> void:
 	recent_finance_log.clear()
@@ -1287,6 +1370,7 @@ func to_save_dict() -> Dictionary:
 		"last_offseason_report": last_offseason_report.duplicate(),
 		"recent_finance_log": recent_finance_log.duplicate(),
 		"last_controlled_team_roster_log": last_controlled_team_roster_log.duplicate(),
+		"season_history": season_history.duplicate(true),
 		"daily_team_bonuses": daily_team_bonuses.duplicate(true),
 		"teams": team_dict,
 		"players": player_dict,
@@ -1309,6 +1393,10 @@ func load_from_dict(data: Dictionary) -> void:
 	last_controlled_team_roster_log.clear()
 	for roster_line in data.get("last_controlled_team_roster_log", []):
 		last_controlled_team_roster_log.append(str(roster_line))
+	season_history.clear()
+	for history_entry in data.get("season_history", []):
+		if history_entry is Dictionary:
+			season_history.append((history_entry as Dictionary).duplicate(true))
 	daily_team_bonuses = data.get("daily_team_bonuses", {}).duplicate(true)
 
 	teams.clear()

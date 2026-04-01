@@ -62,6 +62,14 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = ""
 
+[node name="SimAutoButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SimButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="SimToNextGameButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SimButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="SimToSeasonEndButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/SimButtonsHBox"]
 layout_mode = 2
 text = ""

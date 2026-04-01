@@ -7,6 +7,8 @@
 @onready var info_label: Label = $RootScroll/MarginContainer/RootVBox/InfoLabel
 @onready var sim_day_button: Button = $RootScroll/MarginContainer/RootVBox/SimDayButton
 @onready var sim_week_button: Button = get_node_or_null("RootScroll/MarginContainer/RootVBox/SimButtonsHBox/SimWeekButton")
+@onready var sim_auto_button: Button = get_node_or_null("RootScroll/MarginContainer/RootVBox/SimButtonsHBox/SimAutoButton")
+@onready var sim_to_next_game_button: Button = get_node_or_null("RootScroll/MarginContainer/RootVBox/SimButtonsHBox/SimToNextGameButton")
 @onready var sim_to_season_end_button: Button = get_node_or_null("RootScroll/MarginContainer/RootVBox/SimButtonsHBox/SimToSeasonEndButton")
 @onready var save_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/SaveButton
 @onready var load_button: Button = $RootScroll/MarginContainer/RootVBox/SaveButtonsHBox/LoadButton
@@ -74,6 +76,7 @@ var lineup_edit_target: String = ""
 var selected_lineup_index: int = -1
 var selected_rotation_index: int = -1
 var bullpen_edit_target: String = ""
+var auto_progress_active: bool = false
 
 func _ready() -> void:
 	if LeagueState.teams.is_empty() or LeagueState.schedule.is_empty():
@@ -91,6 +94,10 @@ func _ready() -> void:
 	new_season_button.text = "新シーズン開始"
 	if sim_week_button != null:
 		sim_week_button.text = "7日進める"
+	if sim_auto_button != null:
+		sim_auto_button.text = "オート進行"
+	if sim_to_next_game_button != null:
+		sim_to_next_game_button.text = "次の試合まで"
 	if sim_to_season_end_button != null:
 		sim_to_season_end_button.text = "次の節目まで"
 	save_status_label.text = "保存先: user://save_01.json"
@@ -129,6 +136,10 @@ func _ready() -> void:
 	sim_day_button.pressed.connect(_on_sim_day_button_pressed)
 	if sim_week_button != null:
 		sim_week_button.pressed.connect(_on_sim_week_button_pressed)
+	if sim_auto_button != null:
+		sim_auto_button.pressed.connect(_on_sim_auto_button_pressed)
+	if sim_to_next_game_button != null:
+		sim_to_next_game_button.pressed.connect(_on_sim_to_next_game_button_pressed)
 	if sim_to_season_end_button != null:
 		sim_to_season_end_button.pressed.connect(_on_sim_to_season_end_button_pressed)
 	team_management_button.pressed.connect(_on_team_management_button_pressed)
@@ -153,13 +164,16 @@ func _ready() -> void:
 
 	_refresh_view()
 
+func _exit_tree() -> void:
+	auto_progress_active = false
+
 func _refresh_view() -> void:
 	_apply_home_mode_layout()
 	var controlled_team_text: String = "未設定"
 	var controlled_team: TeamData = LeagueState.get_controlled_team()
 	if controlled_team != null:
 		controlled_team_text = controlled_team.name
-	info_label.text = "日付: %s\n担当球団: %s\n今日はここから 1日消化 を進めるか、チーム管理とリーグ情報へ移動できます。" % [LeagueState.get_current_date_label(), controlled_team_text]
+	info_label.text = "日付: %s\n担当球団: %s\nここから日付を進めるか、チーム管理とリーグ情報へ移動できます。" % [LeagueState.get_current_date_label(), controlled_team_text]
 
 	for child in team_list_vbox.get_children():
 		child.queue_free()
@@ -250,6 +264,11 @@ func _apply_home_mode_layout() -> void:
 			node.visible = false
 
 func _on_sim_day_button_pressed() -> void:
+	if auto_progress_active:
+		return
+	_simulate_single_day()
+
+func _simulate_single_day() -> void:
 	if LeagueState.current_day > LeagueState.get_last_day():
 		_refresh_sim_day_button()
 		return
@@ -272,9 +291,53 @@ func _on_sim_day_button_pressed() -> void:
 	_refresh_view()
 
 func _on_sim_week_button_pressed() -> void:
+	if auto_progress_active:
+		return
 	_simulate_multiple_days(7)
 
+func _on_sim_auto_button_pressed() -> void:
+	if auto_progress_active:
+		auto_progress_active = false
+		save_status_label.text = "オート進行を停止しました"
+		_refresh_sim_day_button()
+		return
+
+	auto_progress_active = true
+	save_status_label.text = "オート進行を開始しました"
+	_refresh_sim_day_button()
+	_run_auto_progress()
+
+func _run_auto_progress() -> void:
+	while auto_progress_active and is_inside_tree():
+		_simulate_single_day()
+		if not auto_progress_active:
+			break
+		await get_tree().create_timer(0.35).timeout
+
+func _on_sim_to_next_game_button_pressed() -> void:
+	if auto_progress_active:
+		return
+	if LeagueState.get_season_phase() != "regular":
+		save_status_label.text = "次の試合まで はシーズン中だけ使えます\n開幕前やオフは 次の節目まで を使ってください"
+		_append_integrity_notes_to_status()
+		_refresh_view()
+		return
+
+	var base_day: int = LeagueState.current_day
+	var controlled_team_id: String = LeagueState.controlled_team_id
+	var next_game_day: int = LeagueState.get_next_game_day(base_day, controlled_team_id)
+	if next_game_day < 0:
+		save_status_label.text = "今年度の担当球団の試合日程はもうありません"
+		_append_integrity_notes_to_status()
+		_refresh_view()
+		return
+
+	var days_to_simulate: int = maxi(1, next_game_day - base_day + 1)
+	_simulate_multiple_days(days_to_simulate)
+
 func _on_sim_to_season_end_button_pressed() -> void:
+	if auto_progress_active:
+		return
 	var phase: String = LeagueState.get_season_phase()
 	var remaining_days: int = 1
 	if phase == "preseason":
@@ -328,12 +391,15 @@ func _simulate_multiple_days(day_count: int) -> void:
 	_refresh_view()
 
 func _on_team_management_button_pressed() -> void:
+	auto_progress_active = false
 	get_tree().change_scene_to_file("res://scenes/TeamManagement.tscn")
 
 func _on_league_info_button_pressed() -> void:
+	auto_progress_active = false
 	get_tree().change_scene_to_file("res://scenes/LeagueInfo.tscn")
 
 func _on_roster_button_pressed() -> void:
+	auto_progress_active = false
 	get_tree().change_scene_to_file("res://scenes/RosterView.tscn")
 
 func _on_save_button_pressed() -> void:
@@ -1185,11 +1251,17 @@ func _refresh_detailed_log() -> void:
 	detailed_log_detail_label.text = "\n".join(lines)
 
 func _refresh_sim_day_button() -> void:
-	sim_day_button.disabled = false
+	var phase: String = LeagueState.get_season_phase()
+	sim_day_button.disabled = auto_progress_active
 	if sim_week_button != null:
-		sim_week_button.disabled = false
+		sim_week_button.disabled = auto_progress_active
+	if sim_auto_button != null:
+		sim_auto_button.disabled = false
+		sim_auto_button.text = "オート停止" if auto_progress_active else "オート進行"
+	if sim_to_next_game_button != null:
+		sim_to_next_game_button.disabled = auto_progress_active or phase != "regular"
 	if sim_to_season_end_button != null:
-		sim_to_season_end_button.disabled = false
+		sim_to_season_end_button.disabled = auto_progress_active
 	new_season_button.visible = false
 	new_season_button.disabled = true
 	sim_day_button.text = "1日進める"

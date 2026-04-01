@@ -33,7 +33,7 @@ var recent_game_ids: Array[String] = []
 func _ready() -> void:
 	title_label.text = "リーグ情報"
 	back_button.text = "ホームへ戻る"
-	info_label.text = "リーグ全体の流れを確認する画面です。順位表、個人成績、ニュース、直近の試合結果をまとめて見られます。"
+	info_label.text = "リーグ全体の流れを確認する画面です。日付ベースの年間進行に合わせて、順位表、個人成績、ニュース、日程をまとめて確認できます。"
 	overview_title_label.text = "リーグ概況"
 	controlled_team_title_label.text = "担当球団の立ち位置"
 	season_status_title_label.text = "シーズン状況"
@@ -67,21 +67,26 @@ func _refresh_overview() -> void:
 	var lines: Array[String] = []
 	var sorted_teams: Array = LeagueState.get_teams_sorted_by_win_pct()
 	var controlled_team: TeamData = LeagueState.get_controlled_team()
+	var phase: String = LeagueState.get_season_phase()
 	lines.append("日付: %s" % LeagueState.get_current_date_label())
+	match phase:
+		"preseason":
+			lines.append("状態: 開幕前")
+		"regular":
+			lines.append("状態: シーズン中")
+		_:
+			lines.append("状態: オフシーズン")
 	if controlled_team != null:
 		lines.append("担当球団: %s" % controlled_team.name)
 	if not sorted_teams.is_empty():
 		var leader: TeamData = sorted_teams[0]
 		lines.append("首位: %s  %d勝 %d敗 %d分" % [leader.name, int(leader.standings["wins"]), int(leader.standings["losses"]), int(leader.standings["draws"])])
 
-	var target_day: int = LeagueState.current_day
-	if LeagueState.current_day > LeagueState.get_last_day():
-		target_day = LeagueState.get_last_day()
-	var games_count: int = 0
-	for game in LeagueState.schedule:
-		if int(game.day) == target_day:
-			games_count += 1
-	lines.append("対象日の試合数: %d" % games_count)
+	var games_count: int = LeagueState.get_games_for_day(LeagueState.current_day).size()
+	lines.append("今日の試合数: %d" % games_count)
+	var next_game_day: int = LeagueState.get_next_game_day(LeagueState.current_day, LeagueState.controlled_team_id)
+	if next_game_day >= 0:
+		lines.append("担当球団の次戦: %s" % LeagueState.get_date_label_for_day(next_game_day))
 
 	overview_detail_label.text = "\n".join(lines)
 
@@ -117,21 +122,53 @@ func _refresh_controlled_team_summary() -> void:
 	controlled_team_detail_label.text = "\n".join(lines)
 
 func _refresh_season_status() -> void:
-	var season_finished: bool = LeagueState.current_day > LeagueState.get_last_day()
-	if not season_finished:
-		season_status_detail_label.text = "シーズン %d 進行中\n現在の日付: %s" % [LeagueState.season_year, LeagueState.get_current_date_label()]
-		return
-
-	var sorted_teams: Array = LeagueState.get_teams_sorted_by_win_pct()
-	if sorted_teams.is_empty():
-		season_status_detail_label.text = "シーズン集計を表示できません"
-		return
-
-	var champion: TeamData = sorted_teams[0]
-	var last_place: TeamData = sorted_teams[sorted_teams.size() - 1]
-	var best_offense: TeamData = _find_team_by_runs_for(true)
-	var best_defense: TeamData = _find_team_by_runs_against(true)
-	season_status_detail_label.text = "シーズン %d 終了\n優勝: %s\n最下位: %s\n最多得点: %s (%d)\n最少失点: %s (%d)\n試合日数: %d" % [LeagueState.season_year, champion.name, last_place.name, best_offense.name if best_offense != null else "-", int(best_offense.standings["runs_for"]) if best_offense != null else 0, best_defense.name if best_defense != null else "-", int(best_defense.standings["runs_against"]) if best_defense != null else 0, LeagueState.get_last_day()]
+	var phase: String = LeagueState.get_season_phase()
+	var lines: Array[String] = []
+	lines.append("%d年" % LeagueState.season_year)
+	lines.append("現在の日付: %s" % LeagueState.get_current_date_label())
+	match phase:
+		"preseason":
+			lines.append("状態: 開幕前")
+			lines.append("開幕予定: %s" % LeagueState.get_date_label_for_day(LeagueState.get_first_game_day()))
+		"regular":
+			lines.append("状態: シーズン中")
+			lines.append("最終戦予定: %s" % LeagueState.get_date_label_for_day(LeagueState.get_final_game_day()))
+		_:
+			lines.append("状態: オフシーズン")
+			lines.append("年末を越えると自動で次年度へ移行します。")
+	var latest_summary: Dictionary = LeagueState.get_latest_completed_season_summary()
+	if not latest_summary.is_empty():
+		lines.append("")
+		lines.append("直近のシーズン記録")
+		lines.append("%d年 優勝: %s / 最下位: %s" % [
+			int(latest_summary.get("year", 0)),
+			str(latest_summary.get("champion_name", "-")),
+			str(latest_summary.get("last_place_name", "-"))
+		])
+		if str(latest_summary.get("controlled_team_name", "")) != "":
+			lines.append("担当球団: %s  %d勝 %d敗 %d分" % [
+				str(latest_summary.get("controlled_team_name", "")),
+				int(latest_summary.get("controlled_wins", 0)),
+				int(latest_summary.get("controlled_losses", 0)),
+				int(latest_summary.get("controlled_draws", 0))
+			])
+		lines.append("打率王: %s  %.3f" % [
+			str(latest_summary.get("avg_leader_name", "-")),
+			float(latest_summary.get("avg_leader_value", 0.0))
+		])
+		lines.append("本塁打王: %s  %d本" % [
+			str(latest_summary.get("hr_leader_name", "-")),
+			int(latest_summary.get("hr_leader_value", 0))
+		])
+		lines.append("最多勝: %s  %d勝" % [
+			str(latest_summary.get("win_leader_name", "-")),
+			int(latest_summary.get("win_leader_value", 0))
+		])
+		lines.append("最多セーブ: %s  %dS" % [
+			str(latest_summary.get("save_leader_name", "-")),
+			int(latest_summary.get("save_leader_value", 0))
+		])
+	season_status_detail_label.text = "\n".join(lines)
 
 func _find_team_by_runs_for(highest: bool) -> TeamData:
 	var best_team: TeamData = null
@@ -467,11 +504,14 @@ func _refresh_recent_games() -> void:
 func _get_recent_game_day() -> int:
 	if LeagueState.schedule.is_empty():
 		return 0
-	if LeagueState.current_day <= 1:
-		return 0
-	if LeagueState.current_day > LeagueState.get_last_day():
-		return LeagueState.get_last_day()
-	return LeagueState.current_day - 1
+	var search_day: int = mini(LeagueState.current_day - 1, LeagueState.get_last_day())
+	while search_day >= 1:
+		var games: Array = LeagueState.get_games_for_day(search_day)
+		for game in games:
+			if bool(game.played):
+				return search_day
+		search_day -= 1
+	return 0
 
 func _on_recent_game_pressed(game_id: String) -> void:
 	selected_game_id = game_id
