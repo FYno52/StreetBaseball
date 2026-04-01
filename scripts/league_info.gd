@@ -11,6 +11,8 @@ const HOME_SCENE_PATH := "res://scenes/LeagueHome.tscn"
 @onready var controlled_team_detail_label: Label = $RootScroll/MarginContainer/RootVBox/ControlledTeamDetailLabel
 @onready var season_status_title_label: Label = $RootScroll/MarginContainer/RootVBox/SeasonStatusTitleLabel
 @onready var season_status_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SeasonStatusDetailLabel
+@onready var season_history_title_label: Label = $RootScroll/MarginContainer/RootVBox/SeasonHistoryTitleLabel
+@onready var season_history_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SeasonHistoryDetailLabel
 @onready var leaders_title_label: Label = $RootScroll/MarginContainer/RootVBox/LeadersTitleLabel
 @onready var batting_leaders_label: Label = $RootScroll/MarginContainer/RootVBox/BattingLeadersLabel
 @onready var pitching_leaders_label: Label = $RootScroll/MarginContainer/RootVBox/PitchingLeadersLabel
@@ -37,6 +39,7 @@ func _ready() -> void:
 	overview_title_label.text = "リーグ概況"
 	controlled_team_title_label.text = "担当球団の立ち位置"
 	season_status_title_label.text = "シーズン状況"
+	season_history_title_label.text = "年度推移"
 	leaders_title_label.text = "リーグ個人成績"
 	event_title_label.text = "ストリートニュース"
 	schedule_title_label.text = "担当球団の年間日程"
@@ -52,6 +55,7 @@ func _refresh_view() -> void:
 	_refresh_overview()
 	_refresh_controlled_team_summary()
 	_refresh_season_status()
+	_refresh_season_history()
 	_refresh_league_leaders()
 	_refresh_daily_events()
 	_refresh_controlled_team_schedule()
@@ -112,12 +116,26 @@ func _refresh_controlled_team_summary() -> void:
 		lines.append("順位: 集計中")
 	lines.append("戦績: %d勝 %d敗 %d分" % [int(controlled_team.standings["wins"]), int(controlled_team.standings["losses"]), int(controlled_team.standings["draws"])])
 	lines.append("得失点: %d / %d" % [int(controlled_team.standings["runs_for"]), int(controlled_team.standings["runs_against"])])
-	lines.append("人気: %d  予算: %d" % [int(controlled_team.fan_support), int(controlled_team.budget)])
+	lines.append("人気: %d  予算: %d  年俸総額: %d" % [int(controlled_team.fan_support), int(controlled_team.budget), LeagueState.get_team_total_salary(str(controlled_team.id))])
 	if not sorted_teams.is_empty():
 		var leader: TeamData = sorted_teams[0]
 		if leader != null and str(leader.id) != str(controlled_team.id):
 			var win_gap: int = int(leader.standings["wins"]) - int(controlled_team.standings["wins"])
 			lines.append("首位との差: %d勝差" % win_gap)
+	var history_summary: Dictionary = LeagueState.get_controlled_team_history_summary()
+	if not history_summary.is_empty() and int(history_summary.get("seasons", 0)) > 0:
+		lines.append("")
+		lines.append("通算: %d年 / %d勝 %d敗 %d分" % [
+			int(history_summary.get("seasons", 0)),
+			int(history_summary.get("total_wins", 0)),
+			int(history_summary.get("total_losses", 0)),
+			int(history_summary.get("total_draws", 0))
+		])
+		lines.append("優勝: %d回  最高順位: %d位" % [
+			int(history_summary.get("championships", 0)),
+			int(history_summary.get("best_rank", 0))
+		])
+		lines.append("直近年俸総額: %d" % int(history_summary.get("latest_total_salary", 0)))
 
 	controlled_team_detail_label.text = "\n".join(lines)
 
@@ -146,12 +164,20 @@ func _refresh_season_status() -> void:
 			str(latest_summary.get("last_place_name", "-"))
 		])
 		if str(latest_summary.get("controlled_team_name", "")) != "":
-			lines.append("担当球団: %s  %d勝 %d敗 %d分" % [
+			lines.append("担当球団: %s  %d位  %d勝 %d敗 %d分" % [
 				str(latest_summary.get("controlled_team_name", "")),
+				int(latest_summary.get("controlled_rank", 0)),
 				int(latest_summary.get("controlled_wins", 0)),
 				int(latest_summary.get("controlled_losses", 0)),
 				int(latest_summary.get("controlled_draws", 0))
 			])
+			lines.append("得失点: %d / %d  人気: %d  予算: %d" % [
+				int(latest_summary.get("controlled_runs_for", 0)),
+				int(latest_summary.get("controlled_runs_against", 0)),
+				int(latest_summary.get("controlled_fan_support", 0)),
+				int(latest_summary.get("controlled_budget", 0))
+			])
+			lines.append("年俸総額: %d" % int(latest_summary.get("controlled_total_salary", 0)))
 		lines.append("打率王: %s  %.3f" % [
 			str(latest_summary.get("avg_leader_name", "-")),
 			float(latest_summary.get("avg_leader_value", 0.0))
@@ -169,6 +195,46 @@ func _refresh_season_status() -> void:
 			int(latest_summary.get("save_leader_value", 0))
 		])
 	season_status_detail_label.text = "\n".join(lines)
+
+func _refresh_season_history() -> void:
+	var history: Array[Dictionary] = LeagueState.get_season_history()
+	if history.is_empty():
+		season_history_detail_label.text = "まだシーズン履歴はありません"
+		return
+
+	var lines: Array[String] = []
+	for i in range(history.size() - 1, -1, -1):
+		var entry: Dictionary = history[i]
+		lines.append("%d年  優勝:%s / 最下位:%s" % [
+			int(entry.get("year", 0)),
+			str(entry.get("champion_name", "-")),
+			str(entry.get("last_place_name", "-"))
+		])
+		if str(entry.get("controlled_team_name", "")) != "":
+			lines.append("担当球団: %s  %d位  %d勝 %d敗 %d分" % [
+				str(entry.get("controlled_team_name", "")),
+				int(entry.get("controlled_rank", 0)),
+				int(entry.get("controlled_wins", 0)),
+				int(entry.get("controlled_losses", 0)),
+				int(entry.get("controlled_draws", 0))
+			])
+			lines.append("得失点:%d/%d  人気:%d  予算:%d" % [
+				int(entry.get("controlled_runs_for", 0)),
+				int(entry.get("controlled_runs_against", 0)),
+				int(entry.get("controlled_fan_support", 0)),
+				int(entry.get("controlled_budget", 0))
+			])
+			lines.append("年俸総額:%d" % int(entry.get("controlled_total_salary", 0)))
+		lines.append("打率王:%s / 本塁打王:%s / 最多勝:%s / 最多S:%s" % [
+			str(entry.get("avg_leader_name", "-")),
+			str(entry.get("hr_leader_name", "-")),
+			str(entry.get("win_leader_name", "-")),
+			str(entry.get("save_leader_name", "-"))
+		])
+		if i > 0:
+			lines.append("")
+
+	season_history_detail_label.text = "\n".join(lines)
 
 func _find_team_by_runs_for(highest: bool) -> TeamData:
 	var best_team: TeamData = null

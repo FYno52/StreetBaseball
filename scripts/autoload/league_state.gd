@@ -571,6 +571,51 @@ func get_latest_completed_season_summary() -> Dictionary:
 		return {}
 	return season_history[season_history.size() - 1].duplicate(true)
 
+func get_controlled_team_history_summary() -> Dictionary:
+	if controlled_team_id == "":
+		return {}
+
+	var seasons: int = 0
+	var championships: int = 0
+	var total_wins: int = 0
+	var total_losses: int = 0
+	var total_draws: int = 0
+	var best_rank: int = 0
+	var latest_budget: int = 0
+	var latest_fan_support: int = 0
+	var latest_total_salary: int = 0
+
+	for entry in season_history:
+		if str(entry.get("controlled_team_id", "")) != controlled_team_id:
+			continue
+		seasons += 1
+		if str(entry.get("champion_team_id", "")) == controlled_team_id:
+			championships += 1
+		total_wins += int(entry.get("controlled_wins", 0))
+		total_losses += int(entry.get("controlled_losses", 0))
+		total_draws += int(entry.get("controlled_draws", 0))
+		var rank: int = int(entry.get("controlled_rank", 0))
+		if rank > 0 and (best_rank == 0 or rank < best_rank):
+			best_rank = rank
+		latest_budget = int(entry.get("controlled_budget", latest_budget))
+		latest_fan_support = int(entry.get("controlled_fan_support", latest_fan_support))
+		latest_total_salary = int(entry.get("controlled_total_salary", latest_total_salary))
+
+	var controlled_team: TeamData = get_controlled_team()
+	return {
+		"team_id": controlled_team_id,
+		"team_name": controlled_team.name if controlled_team != null else "",
+		"seasons": seasons,
+		"championships": championships,
+		"total_wins": total_wins,
+		"total_losses": total_losses,
+		"total_draws": total_draws,
+		"best_rank": best_rank,
+		"latest_budget": latest_budget,
+		"latest_fan_support": latest_fan_support,
+		"latest_total_salary": latest_total_salary
+	}
+
 func _archive_current_season(year: int) -> void:
 	if teams.is_empty():
 		return
@@ -583,6 +628,13 @@ func _archive_current_season(year: int) -> void:
 	var controlled_team: TeamData = get_controlled_team()
 	var batting: Dictionary = get_league_batting_leaders(1)
 	var pitching: Dictionary = get_league_pitching_leaders(1)
+	var controlled_rank: int = 0
+	if controlled_team != null:
+		for i in range(sorted_teams.size()):
+			var ranked_team: TeamData = sorted_teams[i]
+			if ranked_team != null and str(ranked_team.id) == str(controlled_team.id):
+				controlled_rank = i + 1
+				break
 
 	var summary: Dictionary = {
 		"year": year,
@@ -592,9 +644,15 @@ func _archive_current_season(year: int) -> void:
 		"last_place_name": last_place.name,
 		"controlled_team_id": controlled_team_id,
 		"controlled_team_name": controlled_team.name if controlled_team != null else "",
+		"controlled_rank": controlled_rank,
 		"controlled_wins": int(controlled_team.standings["wins"]) if controlled_team != null else 0,
 		"controlled_losses": int(controlled_team.standings["losses"]) if controlled_team != null else 0,
 		"controlled_draws": int(controlled_team.standings["draws"]) if controlled_team != null else 0,
+		"controlled_budget": int(controlled_team.budget) if controlled_team != null else 0,
+		"controlled_total_salary": _calc_team_total_salary(controlled_team) if controlled_team != null else 0,
+		"controlled_fan_support": int(controlled_team.fan_support) if controlled_team != null else 0,
+		"controlled_runs_for": int(controlled_team.standings["runs_for"]) if controlled_team != null else 0,
+		"controlled_runs_against": int(controlled_team.standings["runs_against"]) if controlled_team != null else 0,
 		"avg_leader_name": "",
 		"avg_leader_value": 0.0,
 		"hr_leader_name": "",
@@ -911,6 +969,10 @@ func _run_offseason(previous_year: int, next_year: int) -> Array[String]:
 			continue
 		_apply_player_offseason(player)
 
+	var salary_review_report: Array[String] = _apply_salary_reviews()
+	for report_line in salary_review_report:
+		lines.append(report_line)
+
 	var roster_report: Array[String] = _process_retirements_and_replacements()
 	for report_line in roster_report:
 		lines.append(report_line)
@@ -925,6 +987,107 @@ func _run_offseason(previous_year: int, next_year: int) -> Array[String]:
 		lines.append("担当球団オフ結果: %s / 人気 %d / 予算 %d" % [controlled_team.name, int(controlled_team.fan_support), int(controlled_team.budget)])
 
 	lines.append("選手の年齢・プロ年数・コンディションを更新しました。")
+	return lines
+
+func _apply_salary_reviews() -> Array[String]:
+	var lines: Array[String] = []
+	var controlled_team: TeamData = get_controlled_team()
+	var controlled_before: int = _calc_team_total_salary(controlled_team) if controlled_team != null else 0
+
+	for player_id in players.keys():
+		var player: PlayerData = players[player_id]
+		if player == null:
+			continue
+		_apply_salary_review(player)
+
+	var payroll_adjustment_report: Array[String] = _rebalance_team_payrolls()
+	for report_line in payroll_adjustment_report:
+		lines.append(report_line)
+
+	var controlled_after: int = _calc_team_total_salary(controlled_team) if controlled_team != null else 0
+	if controlled_team != null:
+		lines.append("担当球団年俸更改: 総額 %d -> %d (%+d)" % [
+			controlled_before,
+			controlled_after,
+			controlled_after - controlled_before
+		])
+	return lines
+
+func _apply_salary_review(player: PlayerData) -> void:
+	var base_salary: int = int(player.salary)
+	var target_salary: int = base_salary
+
+	if player.is_pitcher():
+		var outs: int = int(player.pitching_stats["outs"])
+		var wins: int = int(player.pitching_stats["wins"])
+		var saves: int = int(player.pitching_stats["saves"])
+		var holds: int = int(player.pitching_stats["holds"])
+		var era: float = player.get_era()
+		target_salary += int(round(float(player.overall - 50) * 12.0))
+		target_salary += wins * 70 + saves * 45 + holds * 20
+		target_salary += int(round(float(outs) / 9.0 * 6.0))
+		if outs >= 27 and era <= 3.20:
+			target_salary += 250
+		elif outs >= 18 and era >= 5.20:
+			target_salary -= 120
+	else:
+		var avg: float = player.get_batting_average()
+		var hr: int = int(player.batting_stats["hr"])
+		var rbi: int = int(player.batting_stats["rbi"])
+		var pa: int = int(player.batting_stats["pa"])
+		target_salary += int(round(float(player.overall - 50) * 11.0))
+		target_salary += hr * 35 + rbi * 8
+		target_salary += int(round(float(pa) * 0.8))
+		if pa >= 80 and avg >= 0.300:
+			target_salary += 220
+		elif pa >= 40 and avg <= 0.210:
+			target_salary -= 120
+
+	if player.age <= 24 and int(player.potential) > int(player.overall):
+		target_salary += 80
+	elif player.age >= 34:
+		target_salary -= 60
+
+	var eased_salary: int = int(round(float(base_salary) * 0.55 + float(target_salary) * 0.45))
+	player.salary = clampi(eased_salary, 180, 12000)
+
+func _calc_team_total_salary(team: TeamData) -> int:
+	if team == null:
+		return 0
+	var total_salary: int = 0
+	for player_id in team.player_ids:
+		var player: PlayerData = get_player(str(player_id))
+		if player == null:
+			continue
+		total_salary += int(player.salary)
+	return total_salary
+
+func get_team_total_salary(team_id: String) -> int:
+	return _calc_team_total_salary(get_team(team_id))
+
+func _rebalance_team_payrolls() -> Array[String]:
+	var lines: Array[String] = []
+	for team_id in all_team_ids():
+		var team: TeamData = get_team(team_id)
+		if team == null:
+			continue
+		var payroll_total: int = _calc_team_total_salary(team)
+		var salary_target: int = maxi(2500, int(round(float(team.budget) * 1.25)))
+		if payroll_total <= salary_target:
+			continue
+
+		var ratio: float = float(salary_target) / float(maxi(payroll_total, 1))
+		for player_id in team.player_ids:
+			var player: PlayerData = get_player(str(player_id))
+			if player == null:
+				continue
+			var adjusted_salary: int = int(round(float(int(player.salary)) * ratio))
+			player.salary = clampi(adjusted_salary, 180, 12000)
+
+		var adjusted_total: int = _calc_team_total_salary(team)
+		if str(team.id) == controlled_team_id:
+			lines.append("担当球団年俸調整: 予算に合わせて総額 %d -> %d" % [payroll_total, adjusted_total])
+
 	return lines
 
 func _apply_player_offseason(player: PlayerData) -> void:
