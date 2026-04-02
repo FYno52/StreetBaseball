@@ -1,15 +1,15 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scripts/fa_market.gd" id="1_fa_market"]
+[ext_resource type="Script" path="res://scripts/trade_office.gd" id="1_trade"]
 
-[node name="FAMarket" type="Control"]
+[node name="TradeOffice" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_fa_market")
+script = ExtResource("1_trade")
 
 [node name="RootScroll" type="ScrollContainer" parent="."]
 layout_mode = 1
@@ -39,62 +39,53 @@ text = ""
 
 [node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
 
 [node name="BackButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
 layout_mode = 2
 text = ""
 
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="SummaryTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="SummaryDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 72)
+[node name="SummaryLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 84)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="ListTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="ProposalTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 text = ""
 
-[node name="ListDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 260)
+[node name="ProposalDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="ActionButtonsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="TradeButtonsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Action1Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ActionButtonsVBox"]
+[node name="Trade1Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/TradeButtonsVBox"]
 layout_mode = 2
 text = ""
 
-[node name="Action2Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ActionButtonsVBox"]
+[node name="Trade2Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/TradeButtonsVBox"]
 layout_mode = 2
 text = ""
 
-[node name="Action3Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ActionButtonsVBox"]
+[node name="Trade3Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/TradeButtonsVBox"]
 layout_mode = 2
 text = ""
 
-[node name="NoteTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="NoteDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="NoteLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 size_flags_horizontal = 3

@@ -8,8 +8,11 @@ var short_name: String = ""
 var budget: int = 100000
 var fan_support: int = 50
 var strategy: String = "balanced"
-var sponsor_name: String = "地元商店街連合"
+var sponsor_name: String = "街角商店街"
 var sponsor_tier: int = 1
+var draft_focus_ids: Array[String] = []
+var last_draft_year: int = 0
+var last_draft_result_names: Array[String] = []
 
 var facilities: Dictionary = {
 	"training": 1,
@@ -62,6 +65,9 @@ func to_dict() -> Dictionary:
 		"strategy": strategy,
 		"sponsor_name": sponsor_name,
 		"sponsor_tier": sponsor_tier,
+		"draft_focus_ids": draft_focus_ids.duplicate(),
+		"last_draft_year": last_draft_year,
+		"last_draft_result_names": last_draft_result_names.duplicate(),
 		"facilities": facilities.duplicate(true),
 		"staff": staff.duplicate(true),
 		"player_ids": player_ids.duplicate(),
@@ -82,8 +88,18 @@ static func from_dict(d: Dictionary):
 	t.budget = int(d.get("budget", 100000))
 	t.fan_support = int(d.get("fan_support", 50))
 	t.strategy = str(d.get("strategy", "balanced"))
-	t.sponsor_name = str(d.get("sponsor_name", "地元商店街連合"))
+	t.sponsor_name = str(d.get("sponsor_name", "街角商店街"))
 	t.sponsor_tier = int(d.get("sponsor_tier", 1))
+	t.last_draft_year = int(d.get("last_draft_year", 0))
+
+	t.draft_focus_ids.clear()
+	for value in d.get("draft_focus_ids", []):
+		t.draft_focus_ids.append(str(value))
+
+	t.last_draft_result_names.clear()
+	for value in d.get("last_draft_result_names", []):
+		t.last_draft_result_names.append(str(value))
+
 	t.facilities = d.get("facilities", {
 		"training": 1,
 		"medical": 1,
@@ -116,7 +132,18 @@ static func from_dict(d: Dictionary):
 	for value in d.get("rotation_ids", []):
 		t.rotation_ids.append(str(value))
 
-	t.bullpen = d.get("bullpen", {}).duplicate(true)
-	t.standings = d.get("standings", {}).duplicate(true)
+	t.bullpen = d.get("bullpen", {
+		"closer": "",
+		"setup": [],
+		"middle": [],
+		"long": ""
+	}).duplicate(true)
+	t.standings = d.get("standings", {
+		"wins": 0,
+		"losses": 0,
+		"draws": 0,
+		"runs_for": 0,
+		"runs_against": 0
+	}).duplicate(true)
 
 	return t

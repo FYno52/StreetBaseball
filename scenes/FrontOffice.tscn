@@ -100,6 +100,12 @@ size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 44)
 text = ""
 
+[node name="TradeButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/MenuButtonsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 44)
+text = ""
+
 [node name="RoadmapTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 text = ""

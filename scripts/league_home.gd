@@ -130,8 +130,12 @@ func _refresh_season_status() -> void:
 	var first_game_day: int = LeagueState.get_first_game_day()
 	var final_game_day: int = LeagueState.get_final_game_day()
 	var phase: String = LeagueState.get_season_phase()
+	var current_date_label: String = LeagueState.get_current_date_label()
+	var current_month: int = int(LeagueState.get_date_info_for_day(LeagueState.current_day).get("month", 1))
+	var active_sections: Array[String] = _get_active_front_office_sections()
 	var lines: Array[String] = []
-	lines.append("現在日付: %s" % LeagueState.get_current_date_label())
+	lines.append("現在日付: %s" % current_date_label)
+	lines.append("%d月の運営カレンダー" % current_month)
 	lines.append("年度: %d年" % LeagueState.season_year)
 	lines.append("状態: %s" % _get_phase_label(phase))
 	if first_game_day > 0:
@@ -147,6 +151,10 @@ func _refresh_season_status() -> void:
 		lines.append("次に来るイベント")
 		for event_data in upcoming_events:
 			lines.append("- %s  %s" % [str(event_data.get("date_label", "")), str(event_data.get("label", ""))])
+	if not active_sections.is_empty():
+		lines.append("")
+		lines.append("今が使いどき")
+		lines.append("- " + " / ".join(active_sections))
 
 	var offseason_report: Array[String] = LeagueState.get_last_offseason_report()
 	if not offseason_report.is_empty() and LeagueState.current_day <= 14:
@@ -211,8 +219,13 @@ func _refresh_focus_team_summary() -> void:
 func _refresh_today_summary() -> void:
 	var today_games: Array = LeagueState.get_games_for_day(LeagueState.current_day)
 	var calendar_summary: String = LeagueState.get_calendar_summary_text()
+	var direct_hint: String = _get_home_direct_hint()
 	if today_games.is_empty():
-		today_detail_label.text = "%s\n\n今日は試合予定がありません。\n休養日または移動日として進行します。" % calendar_summary
+		var no_game_lines: Array[String] = [calendar_summary, "", "今日は試合予定がありません。", "休養日または移動日として進行します。"]
+		if direct_hint != "":
+			no_game_lines.append("")
+			no_game_lines.append(direct_hint)
+		today_detail_label.text = "\n".join(no_game_lines)
 		return
 
 	var lines: Array[String] = []
@@ -229,6 +242,9 @@ func _refresh_today_summary() -> void:
 
 	lines.append("")
 	lines.append(calendar_summary)
+	if direct_hint != "":
+		lines.append("")
+		lines.append(direct_hint)
 	today_detail_label.text = "\n".join(lines)
 
 
@@ -326,6 +342,7 @@ func _refresh_note_summary() -> void:
 	var lines: Array[String] = []
 	var today_game: GameData = _get_today_controlled_team_game()
 	var phase: String = LeagueState.get_season_phase()
+	var direct_hint: String = _get_home_direct_hint()
 	lines.append("状態: %s" % _get_phase_label(phase))
 	if today_game != null and not bool(today_game.played):
 		lines.append("今日は担当球団の試合があります。")
@@ -342,6 +359,11 @@ func _refresh_note_summary() -> void:
 		lines.append("")
 		lines.append("直近の担当球団結果")
 		lines.append(latest_result_text)
+
+	if direct_hint != "":
+		lines.append("")
+		lines.append("おすすめ導線")
+		lines.append(direct_hint)
 
 	var latest_integrity_notes: Array[String] = LeagueState.latest_integrity_notes
 	if not latest_integrity_notes.is_empty():
@@ -366,6 +388,7 @@ func _refresh_progress_buttons() -> void:
 	save_button.disabled = auto_progress_active
 	load_button.disabled = auto_progress_active
 	sim_auto_button.text = "オート停止" if auto_progress_active else "オート進行"
+	front_office_button.text = _get_front_office_button_text()
 
 
 func _simulate_single_day() -> void:
@@ -617,3 +640,29 @@ func _get_strategy_label(strategy: String) -> String:
 			return "投手重視"
 		_:
 			return "標準"
+
+func _get_active_front_office_sections() -> Array[String]:
+	var active_sections: Array[String] = []
+	if LeagueState.is_contract_period():
+		active_sections.append("契約更改")
+	if LeagueState.is_fa_period():
+		active_sections.append("FA交渉")
+	if LeagueState.is_draft_prep_period() or LeagueState.is_draft_day():
+		active_sections.append("スカウト・ドラフト")
+	if LeagueState.is_sponsor_period():
+		active_sections.append("スポンサー営業")
+	if LeagueState.is_staff_review_period():
+		active_sections.append("スタッフ整理")
+	return active_sections
+
+func _get_front_office_button_text() -> String:
+	var active_sections: Array[String] = _get_active_front_office_sections()
+	if active_sections.is_empty():
+		return "球団運営へ"
+	return "球団運営へ [%s]" % active_sections[0]
+
+func _get_home_direct_hint() -> String:
+	var active_sections: Array[String] = _get_active_front_office_sections()
+	if active_sections.is_empty():
+		return "年間カレンダーや球団運営で次のイベントに備えられます。"
+	return "今は「球団運営へ」から %s を進めるのがおすすめです。" % " / ".join(active_sections)

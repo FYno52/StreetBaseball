@@ -600,6 +600,14 @@ func is_fa_period(day: int = -1) -> bool:
 	var target_day: int = current_day if day <= 0 else day
 	return _calendar_event_exists(target_day, "fa_period")
 
+func is_sponsor_period(day: int = -1) -> bool:
+	var target_day: int = current_day if day <= 0 else day
+	return _calendar_event_exists(target_day, "sponsor_period")
+
+func is_staff_review_period(day: int = -1) -> bool:
+	var target_day: int = current_day if day <= 0 else day
+	return _calendar_event_exists(target_day, "staff_review")
+
 func is_draft_prep_period(day: int = -1) -> bool:
 	var target_day: int = current_day if day <= 0 else day
 	return _calendar_event_exists(target_day, "draft_prep")
@@ -1640,6 +1648,251 @@ func get_fa_candidate_list() -> Array[Dictionary]:
 		return int(a.get("fa_interest", 0)) > int(b.get("fa_interest", 0))
 	)
 	return candidates
+
+func negotiate_controlled_team_fa(player_id: String, years: int = 3) -> Dictionary:
+	if not is_fa_period():
+		return {"ok": false, "message": "FA交渉はFA期間のみ行えます。"}
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return {"ok": false, "message": "担当球団が設定されていません。"}
+	var player: PlayerData = get_player(player_id)
+	if player == null:
+		return {"ok": false, "message": "対象選手が見つかりません。"}
+
+	var current_team: TeamData = _find_player_team(str(player.id))
+	if current_team != null and str(current_team.id) == str(team.id):
+		return {"ok": false, "message": "自球団選手は契約更改で対応してください。"}
+
+	var signing_cost: int = int(player.desired_salary) + years * 400 + int(player.fa_interest) * 10
+	if int(team.budget) < signing_cost:
+		return {"ok": false, "message": "予算が不足しています。必要額: %d" % signing_cost}
+
+	team.budget -= signing_cost
+	if current_team != null:
+		current_team.player_ids.erase(str(player.id))
+		current_team.lineup_vs_r.erase(str(player.id))
+		current_team.lineup_vs_l.erase(str(player.id))
+		current_team.bench_ids.erase(str(player.id))
+		current_team.rotation_ids.erase(str(player.id))
+		if str(current_team.bullpen.get("closer", "")) == str(player.id):
+			current_team.bullpen["closer"] = ""
+		if str(current_team.bullpen.get("long", "")) == str(player.id):
+			current_team.bullpen["long"] = ""
+		for key in ["setup", "middle"]:
+			var values: Array = current_team.bullpen.get(key, [])
+			values.erase(str(player.id))
+			current_team.bullpen[key] = values
+		_rebuild_team_competitive_structures(current_team)
+
+	player.salary = int(player.desired_salary)
+	player.contract_years_left = clampi(years, 1, 5)
+	player.desired_salary = int(round(float(player.salary) * 1.1))
+	player.fa_interest = clampi(int(player.fa_interest) - 25, 0, 100)
+	player.morale = clampi(int(player.morale) + 12, 0, 100)
+
+	if not team.player_ids.has(str(player.id)):
+		team.player_ids.append(str(player.id))
+	_rebuild_team_competitive_structures(team)
+
+	return {
+		"ok": true,
+		"message": "%sと%d年契約を結びました。予算 -%d / 年俸 %d" % [player.full_name, years, signing_cost, int(player.salary)],
+		"player_name": player.full_name,
+		"years": years,
+		"cost": signing_cost
+	}
+
+func get_controlled_team_trade_proposals() -> Array[Dictionary]:
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return []
+
+	var own_players: Array[PlayerData] = []
+	for player_id in team.player_ids:
+		var player: PlayerData = get_player(str(player_id))
+		if player != null:
+			own_players.append(player)
+	own_players.sort_custom(func(a: PlayerData, b: PlayerData) -> bool:
+		return int(a.overall) < int(b.overall)
+	)
+
+	var proposals: Array[Dictionary] = []
+	for other_team_id in all_team_ids():
+		if other_team_id == str(team.id):
+			continue
+		var other_team: TeamData = get_team(other_team_id)
+		if other_team == null:
+			continue
+
+		var other_players: Array[PlayerData] = []
+		for player_id in other_team.player_ids:
+			var player: PlayerData = get_player(str(player_id))
+			if player != null:
+				other_players.append(player)
+		other_players.sort_custom(func(a: PlayerData, b: PlayerData) -> bool:
+			return int(a.overall) > int(b.overall)
+		)
+
+		if own_players.is_empty() or other_players.is_empty():
+			continue
+
+		var give_player: PlayerData = own_players[min(proposals.size(), own_players.size() - 1)]
+		var take_player: PlayerData = other_players[0]
+		proposals.append({
+			"other_team_id": str(other_team.id),
+			"other_team_name": other_team.name,
+			"give_player_id": str(give_player.id),
+			"give_player_name": give_player.full_name,
+			"give_player_overall": int(give_player.overall),
+			"take_player_id": str(take_player.id),
+			"take_player_name": take_player.full_name,
+			"take_player_overall": int(take_player.overall),
+			"summary": "%s ⇄ %s" % [give_player.full_name, take_player.full_name]
+		})
+		if proposals.size() >= 3:
+			break
+
+	return proposals
+
+func execute_controlled_team_trade(give_player_id: String, take_player_id: String) -> Dictionary:
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return {"ok": false, "message": "担当球団が設定されていません。"}
+	if give_player_id == "" or take_player_id == "":
+		return {"ok": false, "message": "トレード対象が不正です。"}
+
+	var give_player: PlayerData = get_player(give_player_id)
+	var take_player: PlayerData = get_player(take_player_id)
+	if give_player == null or take_player == null:
+		return {"ok": false, "message": "対象選手が見つかりません。"}
+	if not team.player_ids.has(give_player_id):
+		return {"ok": false, "message": "放出選手が担当球団に所属していません。"}
+
+	var other_team: TeamData = _find_player_team(take_player_id)
+	if other_team == null or str(other_team.id) == str(team.id):
+		return {"ok": false, "message": "交換相手の所属先が不正です。"}
+
+	team.player_ids.erase(give_player_id)
+	other_team.player_ids.erase(take_player_id)
+	team.player_ids.append(take_player_id)
+	other_team.player_ids.append(give_player_id)
+
+	_rebuild_team_competitive_structures(team)
+	_rebuild_team_competitive_structures(other_team)
+
+	return {
+		"ok": true,
+		"message": "%sとのトレード成立: %s ⇄ %s" % [other_team.name, give_player.full_name, take_player.full_name]
+	}
+
+func get_controlled_team_draft_prospects() -> Array[Dictionary]:
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return []
+	return _build_draft_prospect_list(team)
+
+func toggle_controlled_draft_focus(prospect_id: String) -> Dictionary:
+	if not is_draft_prep_period() and not is_draft_day():
+		return {"ok": false, "message": "注目候補の整理はドラフト準備期間とドラフト会議日に行えます。"}
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return {"ok": false, "message": "担当球団が設定されていません。"}
+	if prospect_id == "":
+		return {"ok": false, "message": "候補IDが不正です。"}
+	if team.draft_focus_ids.has(prospect_id):
+		team.draft_focus_ids.erase(prospect_id)
+		return {"ok": true, "message": "注目候補から外しました。"}
+	if team.draft_focus_ids.size() >= 5:
+		return {"ok": false, "message": "注目候補は5人までです。"}
+	team.draft_focus_ids.append(prospect_id)
+	return {"ok": true, "message": "注目候補に追加しました。"}
+
+func _build_draft_prospect_list(team: TeamData) -> Array[Dictionary]:
+	var scouting_level: int = int(team.facilities.get("scouting", 1))
+	var scout_count: int = int(team.staff.get("scouts", 0))
+	var quality_bonus: int = scouting_level * 3 + scout_count * 2
+	var grade_labels: Array[String] = ["C", "C+", "B", "B+", "A-", "A"]
+	var family_names: Array[String] = ["佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村"]
+	var given_names: Array[String] = ["一樹", "健太", "隼人", "悠斗", "大雅", "直樹", "優真", "蓮"]
+	var role_pool: Array[String] = ["高校生投手", "大学生投手", "社会人投手", "高校生内野手", "大学生外野手", "社会人捕手", "高校生外野手", "大学生内野手"]
+	var style_pool: Array[String] = ["速球派", "変化球型", "守備型", "長打型", "巧打型", "万能型", "強肩型", "粘り強い"]
+	var prospects: Array[Dictionary] = []
+
+	for i in range(8):
+		var prospect_id: String = "%d_draft_%02d" % [season_year, i + 1]
+		var upside: int = 54 + i * 4 + quality_bonus
+		var grade_index: int = mini(grade_labels.size() - 1, int(floor(float(upside - 50) / 8.0)))
+		prospects.append({
+			"prospect_id": prospect_id,
+			"name": "%s %s" % [family_names[i % family_names.size()], given_names[i % given_names.size()]],
+			"role": role_pool[i % role_pool.size()],
+			"grade": grade_labels[grade_index],
+			"upside": upside,
+			"style": style_pool[(i + scouting_level + scout_count) % style_pool.size()],
+			"note": "将来性 %d / スカウト評価 %s" % [upside, grade_labels[grade_index]],
+			"focused": team.draft_focus_ids.has(prospect_id)
+		})
+	return prospects
+
+func run_controlled_team_draft() -> Dictionary:
+	if not is_draft_day():
+		return {"ok": false, "message": "ドラフト指名はドラフト会議当日のみ行えます。"}
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return {"ok": false, "message": "担当球団が設定されていません。"}
+	if int(team.last_draft_year) == int(season_year):
+		return {"ok": false, "message": "今年のドラフト指名はすでに完了しています。"}
+
+	var prospects: Array[Dictionary] = _build_draft_prospect_list(team)
+	if prospects.is_empty():
+		return {"ok": false, "message": "指名できる候補がいません。"}
+
+	var chosen: Dictionary = {}
+	for prospect in prospects:
+		if bool(prospect.get("focused", false)):
+			chosen = prospect
+			break
+	if chosen.is_empty():
+		chosen = prospects[0]
+
+	var role_text: String = str(chosen.get("role", "高校生内野手"))
+	var player: PlayerData
+	if role_text.find("投手") >= 0:
+		player = _build_replacement_pitcher(team.id, "starter")
+	elif role_text.find("捕手") >= 0:
+		player = _build_replacement_fielder(team.id, "C")
+	elif role_text.find("外野手") >= 0:
+		player = _build_replacement_fielder(team.id, "CF")
+	else:
+		player = _build_replacement_fielder(team.id, "SS")
+
+	player.full_name = str(chosen.get("name", player.full_name))
+	player.age = 18 if role_text.find("高校生") >= 0 else 22 if role_text.find("大学生") >= 0 else 24
+	player.years_pro = 1
+	player.contract_years_left = 3
+	player.salary = clampi(450 + int(chosen.get("upside", 60)) * 4, 450, 2200)
+	player.desired_salary = player.salary
+	player.fa_interest = 35
+	player.potential = clampi(int(chosen.get("upside", 60)) + 8, 50, 95)
+	player.morale = 65
+	player.condition = 60
+	player.overall = clampi(maxi(int(player.overall), int(chosen.get("upside", 60)) - 8), 35, 90)
+	player.traits = [str(chosen.get("style", ""))]
+
+	_register_new_player(team, player)
+	_rebuild_team_competitive_structures(team)
+	team.last_draft_year = season_year
+	team.last_draft_result_names = [player.full_name]
+	team.draft_focus_ids.clear()
+
+	return {
+		"ok": true,
+		"message": "ドラフトで %s を指名しました。" % player.full_name,
+		"player_name": player.full_name,
+		"role": role_text,
+		"overall": int(player.overall),
+		"potential": int(player.potential)
+	}
 
 
 func _apply_player_offseason(player: PlayerData) -> void:

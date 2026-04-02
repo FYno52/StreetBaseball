@@ -6,6 +6,7 @@ const SPONSOR_OFFICE_SCENE_PATH := "res://scenes/SponsorOffice.tscn"
 const FACILITY_OFFICE_SCENE_PATH := "res://scenes/FacilityOffice.tscn"
 const STAFF_OFFICE_SCENE_PATH := "res://scenes/StaffOffice.tscn"
 const SCOUT_DRAFT_OFFICE_SCENE_PATH := "res://scenes/ScoutDraftOffice.tscn"
+const TRADE_OFFICE_SCENE_PATH := "res://scenes/TradeOffice.tscn"
 
 @onready var title_label: Label = $RootScroll/MarginContainer/RootVBox/TitleLabel
 @onready var back_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/BackButton
@@ -17,6 +18,7 @@ const SCOUT_DRAFT_OFFICE_SCENE_PATH := "res://scenes/ScoutDraftOffice.tscn"
 @onready var sponsor_button: Button = $RootScroll/MarginContainer/RootVBox/MenuButtonsGrid/SponsorButton
 @onready var staff_button: Button = $RootScroll/MarginContainer/RootVBox/MenuButtonsGrid/StaffButton
 @onready var scout_draft_button: Button = $RootScroll/MarginContainer/RootVBox/MenuButtonsGrid/ScoutDraftButton
+@onready var trade_button: Button = $RootScroll/MarginContainer/RootVBox/MenuButtonsGrid/TradeButton
 @onready var roadmap_title_label: Label = $RootScroll/MarginContainer/RootVBox/RoadmapTitleLabel
 @onready var roadmap_detail_label: Label = $RootScroll/MarginContainer/RootVBox/RoadmapDetailLabel
 @onready var status_label: Label = $RootScroll/MarginContainer/RootVBox/StatusLabel
@@ -36,6 +38,7 @@ func _setup_static_text() -> void:
 	sponsor_button.text = "スポンサー"
 	staff_button.text = "スタッフ"
 	scout_draft_button.text = "スカウト・ドラフト"
+	trade_button.text = "トレード"
 	roadmap_title_label.text = "今後の運営項目"
 	roadmap_detail_label.text = "・契約更改とFA交渉\n・トレードや移籍交渉\n・スカウトとドラフト候補の管理\n・スポンサー営業の強化\n・スタッフ最適化"
 
@@ -46,6 +49,7 @@ func _connect_buttons() -> void:
 	sponsor_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SPONSOR_OFFICE_SCENE_PATH))
 	staff_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(STAFF_OFFICE_SCENE_PATH))
 	scout_draft_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SCOUT_DRAFT_OFFICE_SCENE_PATH))
+	trade_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(TRADE_OFFICE_SCENE_PATH))
 
 func _refresh_view() -> void:
 	var team: TeamData = LeagueState.get_controlled_team()
@@ -60,6 +64,12 @@ func _refresh_view() -> void:
 	var fa_watch: Array = contract_summary.get("fa_watch_players", [])
 	var total_salary: int = int(snapshot.get("total_salary", 0))
 	var calendar_summary: String = LeagueState.get_calendar_summary_text()
+	var contract_now: bool = LeagueState.is_contract_period()
+	var fa_now: bool = LeagueState.is_fa_period()
+	var sponsor_now: bool = LeagueState.is_sponsor_period()
+	var staff_now: bool = LeagueState.is_staff_review_period()
+	var draft_now: bool = LeagueState.is_draft_prep_period() or LeagueState.is_draft_day()
+	var upcoming_events: Array[Dictionary] = LeagueState.get_upcoming_calendar_events(3)
 
 	summary_detail_label.text = "%s\n予算: %d\n人気: %d\n年俸総額: %d\n日次スポンサー収入: +%d\n日次スタッフ費: -%d\n契約切れ間近: %d人\nFA注意: %d人\n\n今日の年間イベント\n%s" % [
 		team.name,
@@ -72,4 +82,38 @@ func _refresh_view() -> void:
 		fa_watch.size(),
 		calendar_summary
 	]
-	status_label.text = "各項目を選ぶと専用ページへ移動します。"
+
+	contract_button.text = "契約・FA"
+	sponsor_button.text = "スポンサー"
+	staff_button.text = "スタッフ"
+	scout_draft_button.text = "スカウト・ドラフト"
+	trade_button.text = "トレード"
+	facility_button.text = "施設"
+
+	var active_sections: Array[String] = []
+	if contract_now:
+		contract_button.text += " [更改期]"
+		active_sections.append("契約更改")
+	if fa_now:
+		contract_button.text += " [FA期]"
+		active_sections.append("FA交渉")
+	if sponsor_now:
+		sponsor_button.text += " [更改期]"
+		active_sections.append("スポンサー営業")
+	if staff_now:
+		staff_button.text += " [見直し期]"
+		active_sections.append("スタッフ整理")
+	if draft_now:
+		scout_draft_button.text += " [ドラフト期]"
+		active_sections.append("スカウト・ドラフト")
+
+	var next_lines: Array[String] = []
+	for event_data in upcoming_events:
+		next_lines.append("%s %s" % [str(event_data.get("date_label", "")), str(event_data.get("label", ""))])
+
+	if active_sections.is_empty():
+		status_label.text = "今は常設項目を中心に確認する時期です。"
+	else:
+		status_label.text = "今が使いどき: %s" % " / ".join(active_sections)
+	if not next_lines.is_empty():
+		status_label.text += "\n次のイベント: " + " / ".join(next_lines)
