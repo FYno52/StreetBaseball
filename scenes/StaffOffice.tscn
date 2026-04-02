@@ -1,0 +1,96 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/staff_office.gd" id="1_staff"]
+
+[node name="StaffOffice" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_staff")
+
+[node name="RootScroll" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="RootScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="RootVBox" type="VBoxContainer" parent="RootScroll/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+text = ""
+
+[node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="DetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="ButtonsGrid" type="GridContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="CoachPlusButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ButtonsGrid"]
+layout_mode = 2
+text = ""
+
+[node name="CoachMinusButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ButtonsGrid"]
+layout_mode = 2
+text = ""
+
+[node name="ScoutPlusButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ButtonsGrid"]
+layout_mode = 2
+text = ""
+
+[node name="ScoutMinusButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ButtonsGrid"]
+layout_mode = 2
+text = ""
+
+[node name="TrainerPlusButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ButtonsGrid"]
+layout_mode = 2
+text = ""
+
+[node name="TrainerMinusButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ButtonsGrid"]
+layout_mode = 2
+text = ""
+
+[node name="StatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3

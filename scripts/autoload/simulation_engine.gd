@@ -481,32 +481,38 @@ func _build_pitch_events(inning: int, side: String, batter_info: Dictionary, pit
 	var pitch_total: int = maxi(1, int(pitch_count_info.get("pitch_count", 1)))
 	var balls_now: int = 0
 	var strikes_now: int = 0
+	var at_bat_result: String = str(pitch_count_info.get("at_bat_result", ""))
+	var command_profile: String = str(pitch_count_info.get("command_profile", "neutral"))
+	var pitcher = LeagueState.get_player(str(pitcher_info.get("id", "")))
 
 	for pitch_number in range(1, pitch_total + 1):
 		var is_last_pitch: bool = pitch_number == pitch_total
 		var result_label: String = "投球"
-		var pitch_type_label: String = _get_random_pitch_type_label()
-		var pitch_zone_label: String = _get_random_pitch_zone_label()
 		if not is_last_pitch:
 			if balls_now < balls_target and strikes_now < strikes_target:
 				if rng.randf() < 0.5:
 					balls_now += 1
-					result_label = "ボール"
+					result_label = _get_ball_pitch_label(command_profile)
 				else:
 					strikes_now += 1
-					result_label = "ストライク"
+					result_label = _get_strike_pitch_label(command_profile, strikes_now)
 			elif balls_now < balls_target:
 				balls_now += 1
-				result_label = "ボール"
+				result_label = _get_ball_pitch_label(command_profile)
 			elif strikes_now < strikes_target:
-				strikes_now += 1
-				result_label = "ファウル" if strikes_now >= 2 and rng.randf() < 0.45 else "ストライク"
+				var strike_label: String = _get_strike_pitch_label(command_profile, strikes_now + 1)
+				if strike_label != "ファウル":
+					strikes_now += 1
+				result_label = strike_label
 			else:
 				result_label = "ファウル"
 		else:
 			balls_now = balls_target
 			strikes_now = strikes_target
-			result_label = str(pitch_count_info.get("summary", "打席結果"))
+			result_label = _get_terminal_pitch_label(at_bat_result, pitch_count_info)
+
+		var pitch_type_label: String = _get_pitch_type_label_for_pitcher(pitcher)
+		var pitch_zone_label: String = _get_pitch_zone_label_for_pitcher(pitcher, result_label)
 
 		events.append({
 			"type": "pitch",
@@ -527,9 +533,67 @@ func _build_pitch_events(inning: int, side: String, batter_info: Dictionary, pit
 			"home_score": home_score,
 			"offense_team_id": str(team.id),
 			"offense_team_name": str(team.name),
+			"at_bat_result": at_bat_result,
+			"command_profile": command_profile,
 		})
 
 	return events
+
+
+func _get_pitch_type_label_for_pitcher(pitcher) -> String:
+	if pitcher == null:
+		return _get_random_pitch_type_label()
+
+	var velocity: float = float(pitcher.ratings.get("velocity", 50))
+	var break_value: float = float(pitcher.ratings.get("break", 50))
+	var control: float = float(pitcher.ratings.get("control", 50))
+	var roll: float = rng.randf()
+
+	if velocity >= 65.0:
+		if roll < 0.34:
+			return "ストレート"
+		if roll < 0.52:
+			return "ツーシーム"
+		if roll < 0.70:
+			return "カット"
+	elif break_value >= 65.0:
+		if roll < 0.24:
+			return "スライダー"
+		if roll < 0.46:
+			return "フォーク"
+		if roll < 0.66:
+			return "カーブ"
+		if roll < 0.82:
+			return "スライダー"
+	elif control >= 65.0:
+		if roll < 0.28:
+			return "ストレート"
+		if roll < 0.50:
+			return "カット"
+		if roll < 0.70:
+			return "ツーシーム"
+
+	return _get_random_pitch_type_label()
+
+
+func _get_pitch_zone_label_for_pitcher(pitcher, result_label: String) -> String:
+	var is_ball_pitch: bool = result_label.find("ボール") != -1
+	var control: float = 50.0
+	if pitcher != null:
+		control = float(pitcher.ratings.get("control", 50))
+
+	if is_ball_pitch:
+		if control >= 65.0:
+			return _pick_from_labels(["外角低め", "内角低め", "外角高め"])
+		if control <= 40.0:
+			return _pick_from_labels(["大きく外れる", "高めに抜ける", "ワンバウンド"])
+		return _pick_from_labels(["外角低め", "高めに外れる", "内角を外す"])
+
+	if control >= 70.0:
+		return _pick_from_labels(["外角低め", "内角低め", "真ん中低め", "外角高め"])
+	if control <= 40.0:
+		return _pick_from_labels(["真ん中高め", "真ん中低め", "甘いコース"])
+	return _get_random_pitch_zone_label()
 
 
 func _get_random_pitch_type_label() -> String:
@@ -540,6 +604,12 @@ func _get_random_pitch_type_label() -> String:
 func _get_random_pitch_zone_label() -> String:
 	var pitch_zones: Array[String] = ["外角高め", "外角低め", "内角高め", "内角低め", "真ん中高め", "真ん中低め"]
 	return pitch_zones[rng.randi_range(0, pitch_zones.size() - 1)]
+
+
+func _pick_from_labels(labels: Array[String]) -> String:
+	if labels.is_empty():
+		return ""
+	return labels[rng.randi_range(0, labels.size() - 1)]
 
 
 func _build_pitch_count_info(result: String, command_profile: String = "neutral") -> Dictionary:
@@ -585,7 +655,71 @@ func _build_pitch_count_info(result: String, command_profile: String = "neutral"
 		"strikes": strikes,
 		"pitch_count": pitch_count,
 		"summary": summary,
+		"at_bat_result": result,
+		"command_profile": command_profile,
 	}
+
+
+func _get_ball_pitch_label(command_profile: String) -> String:
+	if command_profile == "bunt" and rng.randf() < 0.25:
+		return "ボール球を見送る"
+	if command_profile == "aggressive" and rng.randf() < 0.35:
+		return "ボール球を見逃す"
+	if rng.randf() < 0.45:
+		return "ボール"
+	return "外してボール"
+
+
+func _get_strike_pitch_label(command_profile: String, next_strike_count: int) -> String:
+	if next_strike_count >= 2 and rng.randf() < 0.35:
+		return "ファウル"
+
+	match command_profile:
+		"aggressive":
+			if rng.randf() < 0.55:
+				return "空振り"
+			return "ファウル" if rng.randf() < 0.25 else "見逃しストライク"
+		"bunt":
+			if rng.randf() < 0.45:
+				return "バントファウル"
+			return "見逃しストライク"
+		"advance":
+			if rng.randf() < 0.35:
+				return "ファウル"
+			return "見逃しストライク"
+		_:
+			var roll: float = rng.randf()
+			if roll < 0.35:
+				return "見逃しストライク"
+			if roll < 0.70:
+				return "空振り"
+			return "ファウル"
+
+
+func _get_terminal_pitch_label(result: String, pitch_count_info: Dictionary) -> String:
+	match result:
+		"walk":
+			return "四球"
+		"strikeout":
+			return "空振り三振"
+		"bunt_success":
+			return "バント成功"
+		"single":
+			return "打って単打"
+		"double":
+			return "打って二塁打"
+		"triple":
+			return "打って三塁打"
+		"home_run":
+			return "打って本塁打"
+		"fly_out":
+			return "打ち上げて外野フライ"
+		"ground_out":
+			return "打たせて内野ゴロ"
+		"double_play":
+			return "併殺打"
+		_:
+			return str(pitch_count_info.get("summary", "打席終了"))
 
 func _get_pitcher_from_plan_for_outs(plan: Array, target_outs: int) -> Dictionary:
 	var covered_outs: int = 0

@@ -8,6 +8,21 @@ var short_name: String = ""
 var budget: int = 100000
 var fan_support: int = 50
 var strategy: String = "balanced" # balanced / power / speed / defense / pitching
+var sponsor_name: String = "地元商店街連合"
+var sponsor_tier: int = 1
+
+var facilities: Dictionary = {
+	"training": 1,
+	"medical": 1,
+	"scouting": 1,
+	"marketing": 1
+}
+
+var staff: Dictionary = {
+	"coaches": 2,
+	"scouts": 1,
+	"trainers": 1
+}
 
 var player_ids: Array[String] = []
 
@@ -45,6 +60,10 @@ func to_dict() -> Dictionary:
 		"budget": budget,
 		"fan_support": fan_support,
 		"strategy": strategy,
+		"sponsor_name": sponsor_name,
+		"sponsor_tier": sponsor_tier,
+		"facilities": facilities.duplicate(true),
+		"staff": staff.duplicate(true),
 		"player_ids": player_ids.duplicate(),
 		"lineup_vs_r": lineup_vs_r.duplicate(),
 		"lineup_vs_l": lineup_vs_l.duplicate(),
@@ -63,6 +82,19 @@ static func from_dict(d: Dictionary):
 	t.budget = int(d.get("budget", 100000))
 	t.fan_support = int(d.get("fan_support", 50))
 	t.strategy = str(d.get("strategy", "balanced"))
+	t.sponsor_name = str(d.get("sponsor_name", "地元商店街連合"))
+	t.sponsor_tier = int(d.get("sponsor_tier", 1))
+	t.facilities = d.get("facilities", {
+		"training": 1,
+		"medical": 1,
+		"scouting": 1,
+		"marketing": 1
+	}).duplicate(true)
+	t.staff = d.get("staff", {
+		"coaches": 2,
+		"scouts": 1,
+		"trainers": 1
+	}).duplicate(true)
 
 	t.player_ids.clear()
 	for value in d.get("player_ids", []):

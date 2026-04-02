@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 
 const TEAM_DATA_SCRIPT = preload("res://scripts/data/team_data.gd")
 const PLAYER_DATA_SCRIPT = preload("res://scripts/data/player_data.gd")
@@ -19,6 +19,7 @@ var controlled_team_id: String = ""
 var selected_player_id: String = ""
 var selected_game_id: String = ""
 var selected_match_mode: String = "replay"
+var active_live_game_id: String = ""
 
 # team_id -> TeamData
 var teams: Dictionary = {}
@@ -35,14 +36,17 @@ var recent_finance_log: Array[String] = []
 var last_controlled_team_roster_log: Array[String] = []
 var latest_integrity_notes: Array[String] = []
 var season_history: Array[Dictionary] = []
+var prepared_day: int = 0
+var finalized_finance_day: int = 0
+var pending_home_message: String = ""
 
 var team_master: Array[Dictionary] = [
 	{"id": "TKY", "name": "東京フェニックス"},
 	{"id": "OSK", "name": "大阪ブレイバーズ"},
 	{"id": "NGY", "name": "名古屋スティング"},
-	{"id": "SPP", "name": "札幌ホワイトベアーズ"},
-	{"id": "FKO", "name": "福岡サンダース"},
-	{"id": "SDI", "name": "仙台フォックス"}
+	{"id": "SPP", "name": "札幌ノーザンウルブズ"},
+	{"id": "FKO", "name": "福岡サンダーズ"},
+	{"id": "SDI", "name": "仙台ストーム"}
 ]
 
 func reset() -> void:
@@ -52,6 +56,7 @@ func reset() -> void:
 	selected_player_id = ""
 	selected_game_id = ""
 	selected_match_mode = "replay"
+	active_live_game_id = ""
 	teams.clear()
 	players.clear()
 	schedule.clear()
@@ -62,6 +67,9 @@ func reset() -> void:
 	last_controlled_team_roster_log.clear()
 	latest_integrity_notes.clear()
 	season_history.clear()
+	prepared_day = 0
+	finalized_finance_day = 0
+	pending_home_message = ""
 
 func new_game() -> void:
 	reset()
@@ -89,6 +97,12 @@ func start_new_season() -> Array[String]:
 	daily_team_bonuses.clear()
 	last_offseason_report = _run_offseason(previous_year, season_year)
 	recent_finance_log.clear()
+	prepared_day = 0
+	finalized_finance_day = 0
+	pending_home_message = ""
+	selected_game_id = ""
+	selected_match_mode = "replay"
+	active_live_game_id = ""
 
 	for team_id in teams.keys():
 		var team = teams[team_id]
@@ -131,6 +145,17 @@ func set_selected_match_mode(match_mode: String) -> void:
 func get_selected_match_mode() -> String:
 	return selected_match_mode
 
+func set_active_live_game(game_id: String) -> void:
+	active_live_game_id = game_id
+
+func clear_active_live_game() -> void:
+	active_live_game_id = ""
+
+func is_active_live_game(game_id: String) -> bool:
+	if game_id == "":
+		return false
+	return active_live_game_id == game_id
+
 func get_selected_game():
 	if selected_game_id == "":
 		return null
@@ -144,6 +169,14 @@ func get_controlled_team() -> TeamData:
 	if controlled_team_id == "":
 		return null
 	return get_team(controlled_team_id)
+
+func set_pending_home_message(message: String) -> void:
+	pending_home_message = message
+
+func consume_pending_home_message() -> String:
+	var message: String = pending_home_message
+	pending_home_message = ""
+	return message
 
 func _generate_schedule() -> void:
 	schedule.clear()
@@ -447,7 +480,11 @@ func advance_day() -> void:
 func complete_day_transition() -> Array[String]:
 	if current_day < get_last_day():
 		advance_day()
+		prepared_day = 0
+		finalized_finance_day = 0
 		return []
+	prepared_day = 0
+	finalized_finance_day = 0
 	return start_new_season()
 
 func all_team_ids() -> Array[String]:
@@ -457,20 +494,109 @@ func all_team_ids() -> Array[String]:
 	return result
 
 func simulate_current_day() -> Array:
+	_sanitize_match_selection_state()
 	_normalize_all_teams()
+	_prepare_current_day_context()
 	var games_today: Array = get_games_for_day(current_day)
-	var event_pack: Dictionary = _generate_daily_events(current_day)
-	recent_events = event_pack.get("texts", [])
-	daily_team_bonuses = event_pack.get("bonuses", {})
 
 	for game in games_today:
+		if bool(game.played):
+			continue
 		var away_team = get_team(str(game.away_team_id))
 		var home_team = get_team(str(game.home_team_id))
 		SimulationEngine.simulate_game(game, away_team, home_team)
 
-	_apply_daily_finances(current_day, games_today)
+	_apply_daily_finances_if_ready(current_day, games_today)
 
 	return games_today
+
+
+func simulate_non_controlled_games_for_current_day() -> Array:
+	_sanitize_match_selection_state()
+	_normalize_all_teams()
+	_prepare_current_day_context()
+	var games_today: Array = get_games_for_day(current_day)
+	var simulated_games: Array = []
+
+	for game in games_today:
+		if bool(game.played):
+			continue
+		var involves_controlled: bool = controlled_team_id != "" and (
+			str(game.away_team_id) == controlled_team_id or str(game.home_team_id) == controlled_team_id
+		)
+		if involves_controlled:
+			continue
+		var away_team = get_team(str(game.away_team_id))
+		var home_team = get_team(str(game.home_team_id))
+		SimulationEngine.simulate_game(game, away_team, home_team)
+		simulated_games.append(game)
+
+	_apply_daily_finances_if_ready(current_day, games_today)
+	return simulated_games
+
+
+func finalize_current_day_if_ready() -> Dictionary:
+	_sanitize_match_selection_state()
+	var games_today: Array = get_games_for_day(current_day)
+	for game in games_today:
+		if not bool(game.played):
+			return {
+				"day_completed": false,
+				"transition_report": [],
+				"finance_applied": false
+			}
+
+	_apply_daily_finances_if_ready(current_day, games_today)
+	var transition_report: Array[String] = complete_day_transition()
+	selected_game_id = ""
+	selected_match_mode = "replay"
+	active_live_game_id = ""
+	return {
+		"day_completed": true,
+		"transition_report": transition_report,
+		"finance_applied": true
+	}
+
+
+func _prepare_current_day_context() -> void:
+	_sanitize_match_selection_state()
+	if prepared_day == current_day:
+		return
+	var event_pack: Dictionary = _generate_daily_events(current_day)
+	recent_events = event_pack.get("texts", [])
+	daily_team_bonuses = event_pack.get("bonuses", {})
+	prepared_day = current_day
+
+
+func _apply_daily_finances_if_ready(day: int, games_today: Array) -> void:
+	if finalized_finance_day == day:
+		return
+	for game in games_today:
+		if not bool(game.played):
+			return
+	_apply_daily_finances(day, games_today)
+	finalized_finance_day = day
+
+func _sanitize_match_selection_state() -> void:
+	if selected_game_id != "":
+		var selected_game = get_selected_game()
+		if selected_game == null:
+			selected_game_id = ""
+			selected_match_mode = "replay"
+		elif int(selected_game.day) != current_day or bool(selected_game.played):
+			selected_game_id = ""
+			selected_match_mode = "replay"
+
+	if active_live_game_id != "":
+		var active_game = get_selected_game() if selected_game_id == active_live_game_id else null
+		if active_game == null:
+			for game_value in schedule:
+				var schedule_game: GameData = game_value
+				if schedule_game != null and str(schedule_game.id) == active_live_game_id:
+					active_game = schedule_game
+					break
+		if active_game == null or int(active_game.day) != current_day or bool(active_game.played):
+			active_live_game_id = ""
 
 func _normalize_all_teams() -> void:
 	latest_integrity_notes.clear()
@@ -505,7 +631,7 @@ func _normalize_team_structures(team: TeamData) -> void:
 
 	if not has_pitcher or not has_fielder:
 		_replenish_team_roster(team, [])
-		latest_integrity_notes.append("%s の人数不足を補充しました" % team.name)
+		latest_integrity_notes.append("%s roster was missing a pitcher or fielder, so fallback players were added." % team.name)
 
 	var needs_rebuild: bool = false
 	for player_id in team.rotation_ids:
@@ -530,7 +656,7 @@ func _normalize_team_structures(team: TeamData) -> void:
 
 	if needs_rebuild or team.rotation_ids.is_empty() or team.lineup_vs_r.is_empty() or team.lineup_vs_l.is_empty():
 		_rebuild_team_competitive_structures(team)
-		latest_integrity_notes.append("%s の起用データを再構築しました" % team.name)
+		latest_integrity_notes.append("%s lineup or rotation was broken, so it was rebuilt." % team.name)
 		return
 
 	var original_bench_size: int = team.bench_ids.size()
@@ -544,9 +670,9 @@ func _normalize_team_structures(team: TeamData) -> void:
 
 	normalize_team_bullpen(team)
 	if removed_missing_players > 0:
-		latest_integrity_notes.append("%s の無効な選手IDを %d 件整理しました" % [team.name, removed_missing_players])
+		latest_integrity_notes.append("%s removed %d invalid player ids." % [team.name, removed_missing_players])
 	if cleaned_bench_ids.size() != original_bench_size:
-		latest_integrity_notes.append("%s のベンチ構成を整理しました" % team.name)
+		latest_integrity_notes.append("%s bench structure was cleaned up." % team.name)
 
 func get_latest_integrity_notes() -> Array[String]:
 	return latest_integrity_notes.duplicate()
@@ -554,38 +680,38 @@ func get_latest_integrity_notes() -> Array[String]:
 func get_integrity_audit() -> Array[String]:
 	var issues: Array[String] = []
 	if schedule.is_empty():
-		issues.append("日程が空です")
+		issues.append("Schedule data is empty.")
 	if current_day < 1:
-		issues.append("現在日が不正です")
+		issues.append("Current day is below 1.")
 	if current_day > get_last_day() + 1:
-		issues.append("現在日が最終日を超えすぎています")
+		issues.append("Current day exceeds schedule range.")
 	if controlled_team_id != "" and not teams.has(controlled_team_id):
-		issues.append("担当球団IDが無効です")
+		issues.append("Controlled team id is invalid.")
 
 	for team_id in teams.keys():
 		var team: TeamData = teams[team_id]
 		if team == null:
-			issues.append("チームデータが null です: %s" % str(team_id))
+			issues.append("team_id=%s has null team data." % str(team_id))
 			continue
 
 		if team.player_ids.is_empty():
-			issues.append("%s の登録選手がいません" % team.name)
+			issues.append("%s has no registered players." % team.name)
 		if team.rotation_ids.is_empty():
-			issues.append("%s の先発ローテが空です" % team.name)
+			issues.append("%s has empty rotation." % team.name)
 		if team.lineup_vs_r.size() < 9:
-			issues.append("%s の対右打線が不足しています" % team.name)
+			issues.append("%s has fewer than 9 players in lineup_vs_r." % team.name)
 		if team.lineup_vs_l.size() < 9:
-			issues.append("%s の対左打線が不足しています" % team.name)
+			issues.append("%s has fewer than 9 players in lineup_vs_l." % team.name)
 
 		var missing_players: int = 0
 		for player_id in team.player_ids:
 			if get_player(str(player_id)) == null:
 				missing_players += 1
 		if missing_players > 0:
-			issues.append("%s に無効な選手IDが %d 件あります" % [team.name, missing_players])
+			issues.append("%s has %d invalid player ids." % [team.name, missing_players])
 
 	if issues.is_empty():
-		issues.append("監査OK")
+		issues.append("Audit OK")
 	return issues
 
 func get_recent_events() -> Array[String]:
@@ -742,23 +868,28 @@ func _apply_daily_finances(day: int, games_today: Array) -> void:
 
 func _apply_team_game_day_finance(team: TeamData, is_home_game: bool, day: int) -> void:
 	var payroll_cost: int = _calc_daily_payroll_cost(team)
+	var sponsor_income: int = _calc_daily_sponsor_income(team)
+	var staff_cost: int = _calc_daily_staff_cost(team)
 	var base_income: int = 800 + int(team.fan_support) * 18
 	var venue_bonus: int = 900 if is_home_game else 250
+	venue_bonus += int(team.facilities.get("marketing", 1)) * 90
 	var performance_bonus: int = int(team.standings["wins"]) * 15
-	var game_income: int = base_income + venue_bonus + performance_bonus
+	var game_income: int = base_income + venue_bonus + performance_bonus + sponsor_income
 	var travel_cost: int = 120 if is_home_game else 420
-	var net_change: int = game_income - payroll_cost - travel_cost
+	var net_change: int = game_income - payroll_cost - travel_cost - staff_cost
 
 	team.budget = maxi(0, int(team.budget) + net_change)
 
 	if str(team.id) == controlled_team_id:
-		var line: String = "%s  収支 %s%d  入場+%d  人件費-%d  %s-%d" % [
+		var line: String = "%s  鬮ｯ・ｷ繝ｻ・ｿ髯ｷ・ｿ陞滓・・ｽ・ｫ繝ｻ・ｪ %s%d  鬮ｯ・ｷ髣鯉ｽｨ繝ｻ・ｽ繝ｻ・･鬮ｯ諛ｶ・ｽ・｣郢晢ｽｻ繝ｻ・ｴ+%d  鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴弱・・ｺ・｢繝ｻ雜｣・ｽ・ｦ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｵ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ+%d  鬮｣雋ｻ・｣・ｰ郢晢ｽｻ繝ｻ・ｺ鬮｣豈費ｽｼ螟ｲ・ｽ・ｽ繝ｻ・ｶ鬯ｮ・ｮ陷茨ｽｷ繝ｻ・ｽ繝ｻ・ｻ-%d  鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｵ-%d  %s-%d" % [
 			get_date_label_for_day(day),
 			"+" if net_change >= 0 else "",
 			net_change,
-			game_income,
+			game_income - sponsor_income,
+			sponsor_income,
 			payroll_cost,
-			"運営費" if is_home_game else "遠征費",
+			staff_cost,
+			"鬯ｯ・ｩ陷肴ｺｷ鄂ｰ鬯ｮ・ｴ繝ｻ・ｧ鬯ｮ・ｮ陷茨ｽｷ繝ｻ・ｽ繝ｻ・ｻ" if is_home_game else "鬯ｯ・ｩ陋ｹ繝ｻ・ｽ・｣繝ｻ・ｰ鬮ｯ貅ｯ・｣諛亥合郢晢ｽｻ繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｻ",
 			travel_cost
 		]
 		recent_finance_log.append(line)
@@ -771,6 +902,21 @@ func _calc_daily_payroll_cost(team: TeamData) -> int:
 			continue
 		payroll_sum += int(player.salary)
 	return maxi(150, int(round(float(payroll_sum) / 80.0)))
+
+func _calc_daily_sponsor_income(team: TeamData) -> int:
+	if team == null:
+		return 0
+	var sponsor_tier: int = int(team.sponsor_tier)
+	var marketing_level: int = int(team.facilities.get("marketing", 1))
+	return 160 + sponsor_tier * 180 + marketing_level * 70
+
+func _calc_daily_staff_cost(team: TeamData) -> int:
+	if team == null:
+		return 0
+	var coaches: int = int(team.staff.get("coaches", 0))
+	var scouts: int = int(team.staff.get("scouts", 0))
+	var trainers: int = int(team.staff.get("trainers", 0))
+	return coaches * 22 + scouts * 28 + trainers * 24
 
 func get_team_event_bonus(team_id: String) -> Dictionary:
 	if daily_team_bonuses.has(team_id):
@@ -794,7 +940,7 @@ func _generate_daily_events(day: int) -> Dictionary:
 		_apply_event_bonus(bonuses, event_2)
 
 	if events.is_empty():
-		events.append("[平穏] 今日は大きな事件なし。いつも通りリーグ戦が進む。")
+		events.append("[平穏] 今日は大きなニュースはありません。")
 
 	return {
 		"texts": events,
@@ -804,7 +950,15 @@ func _generate_daily_events(day: int) -> Dictionary:
 func _build_flavor_event(rng: RandomNumberGenerator) -> Dictionary:
 	var team_ids: Array[String] = all_team_ids()
 	if team_ids.is_empty():
-		return {"text": "商店街のざわつきだけが残った。"}
+		return {
+			"category": "平穏",
+			"text": "今日は特に大きな出来事はありません。",
+			"team_id": "",
+			"attack": 0.0,
+			"pitch": 0.0,
+			"fan_delta": 0,
+			"budget_delta": 0
+		}
 
 	var team_id: String = team_ids[rng.randi_range(0, team_ids.size() - 1)]
 	var team = get_team(team_id)
@@ -815,31 +969,24 @@ func _build_flavor_event(rng: RandomNumberGenerator) -> Dictionary:
 			if player != null:
 				roster.append(player)
 
-	var player_name: String = team.name if team != null else "名無しチーム"
+	var player_name: String = team.name if team != null else "注目選手"
 	if not roster.is_empty():
 		var picked_player = roster[rng.randi_range(0, roster.size() - 1)]
 		player_name = picked_player.full_name
 
 	var event_defs: Array[Dictionary] = [
-		{"category": "朗報", "text": "%s が試合前に商店街でファンサービス。観客がいつもより集まっている。", "attack": 1.2, "pitch": 0.0, "fan_delta": 3, "budget_delta": 1200},
-		{"category": "朗報", "text": "%s がバットを持って気合いの素振り。チーム全体の空気が少し熱い。", "attack": 1.6, "pitch": 0.0, "fan_delta": 1, "budget_delta": 0},
-		{"category": "街の噂", "text": "%s のベンチで謎の円陣。内容は不明だが、妙に士気が高い。", "attack": 0.8, "pitch": 0.8, "fan_delta": 0, "budget_delta": 0},
-		{"category": "街の噂", "text": "%s 周辺で屋台が盛り上がり、今日はいつもより賑やかな空気。", "attack": 0.5, "pitch": 0.5, "fan_delta": 2, "budget_delta": 800},
-		{"category": "朗報", "text": "%s が『今日は見せ場を作る』と宣言。周囲が少しざわつく。", "attack": 1.4, "pitch": 0.0, "fan_delta": 1, "budget_delta": 0},
-		{"category": "朗報", "text": "%s のメンバーが河川敷で早朝特訓。守りの動きがやけに締まっている。", "attack": 0.0, "pitch": 1.2, "fan_delta": 1, "budget_delta": 0},
-		{"category": "朗報", "text": "%s が近所の子ども相手にキャッチボール教室。街の空気が少し味方している。", "attack": 0.4, "pitch": 0.6, "fan_delta": 4, "budget_delta": 1500},
-		{"category": "街の噂", "text": "%s に差し入れの焼きそばパンが大量到着。ベンチの雰囲気が妙にいい。", "attack": 0.7, "pitch": 0.3, "fan_delta": 1, "budget_delta": 0},
-		{"category": "朗報", "text": "%s のエースが無言でブルペン入り。周囲が勝手に引き締まっている。", "attack": 0.0, "pitch": 1.5, "fan_delta": 0, "budget_delta": 0},
-		{"category": "朗報", "text": "%s の主砲がバッティングセンターで当てまくったらしい。打席前から妙な自信がある。", "attack": 1.8, "pitch": -0.1, "fan_delta": 1, "budget_delta": 0},
-		{"category": "不穏", "text": "%s が遅刻寸前で滑り込み。周囲の視線がやや厳しい。", "attack": -0.4, "pitch": -0.2, "fan_delta": -2, "budget_delta": 0},
-		{"category": "不穏", "text": "%s 周辺で小さな口論。空気が少しピリついている。", "attack": -0.6, "pitch": -0.6, "fan_delta": -1, "budget_delta": 0},
-		{"category": "不穏", "text": "%s の用具がひとつ足りないまま集合。試合前の準備がややバタついている。", "attack": -0.5, "pitch": -0.4, "fan_delta": -1, "budget_delta": -500},
-		{"category": "不穏", "text": "%s のベンチで誰かの説教が長引いたらしい。空気が少し重い。", "attack": -0.7, "pitch": -0.3, "fan_delta": -1, "budget_delta": 0},
-		{"category": "街の噂", "text": "%s に臨時の差し入れ代が発生。財布は痛いが士気は少し上がっている。", "attack": 0.5, "pitch": 0.2, "fan_delta": 0, "budget_delta": -1200},
-		{"category": "街の噂", "text": "%s の応援に地元の先輩たちが大挙して登場。良くも悪くも目立っている。", "attack": 1.0, "pitch": 0.4, "fan_delta": 2, "budget_delta": 600}
+		{"category": "朗報", "text": "%s が商店街イベントで大人気。打線の雰囲気が良くなった。", "attack": 1.2, "pitch": 0.0, "fan_delta": 3, "budget_delta": 1200},
+		{"category": "朗報", "text": "%s が自主練で鋭い振りを見せ、周囲の期待が高まっている。", "attack": 1.0, "pitch": 0.2, "fan_delta": 1, "budget_delta": 0},
+		{"category": "街の噂", "text": "%s の選手たちが地元の子どもたちと交流し、球場の空気が明るい。", "attack": 0.6, "pitch": 0.4, "fan_delta": 2, "budget_delta": 400},
+		{"category": "街の噂", "text": "%s の差し入れ話でベンチが盛り上がっている。", "attack": 0.4, "pitch": 0.4, "fan_delta": 1, "budget_delta": -300},
+		{"category": "不穏", "text": "%s 周辺で用具トラブルの噂。試合前の空気が少し重い。", "attack": -0.5, "pitch": -0.3, "fan_delta": -1, "budget_delta": -500},
+		{"category": "不穏", "text": "%s でベンチの空気が張りつめている。立ち上がりに注意。", "attack": -0.3, "pitch": -0.5, "fan_delta": -1, "budget_delta": 0},
+		{"category": "朗報", "text": "%s の若手が絶好調。今日は思い切った打撃が光りそうだ。", "attack": 1.4, "pitch": 0.0, "fan_delta": 1, "budget_delta": 0},
+		{"category": "朗報", "text": "%s の投手陣が入念に調整。守りから流れを作れそうだ。", "attack": 0.0, "pitch": 1.3, "fan_delta": 1, "budget_delta": 0}
 	]
 	var event_def: Dictionary = event_defs[rng.randi_range(0, event_defs.size() - 1)]
 	return {
+		"category": str(event_def["category"]),
 		"text": str(event_def["text"]) % player_name,
 		"team_id": team_id,
 		"attack": float(event_def.get("attack", 0.0)),
@@ -975,8 +1122,8 @@ func get_season_phase() -> String:
 
 func _run_offseason(previous_year: int, next_year: int) -> Array[String]:
 	var lines: Array[String] = []
-	lines.append("%d年シーズン終了後のオフを処理しました。" % previous_year)
-	lines.append("%d年シーズンへ移行します。" % next_year)
+	lines.append("%d年シーズンのオフ処理を開始しました。" % previous_year)
+	lines.append("%d年シーズンへ向けて球団と選手を調整します。" % next_year)
 
 	var sorted_teams: Array = get_teams_sorted_by_win_pct()
 	var champion_id: String = ""
@@ -1021,13 +1168,13 @@ func _run_offseason(previous_year: int, next_year: int) -> Array[String]:
 	if champion_id != "":
 		var champion_team: TeamData = get_team(champion_id)
 		if champion_team != null:
-			lines.append("前年優勝: %s" % champion_team.name)
+			lines.append("前年の優勝球団: %s" % champion_team.name)
 
 	var controlled_team: TeamData = get_controlled_team()
 	if controlled_team != null:
-		lines.append("担当球団オフ結果: %s / 人気 %d / 予算 %d" % [controlled_team.name, int(controlled_team.fan_support), int(controlled_team.budget)])
+		lines.append("担当球団: %s / 人気 %d / 予算 %d" % [controlled_team.name, int(controlled_team.fan_support), int(controlled_team.budget)])
 
-	lines.append("選手の年齢・プロ年数・コンディションを更新しました。")
+	lines.append("オフシーズン処理が完了しました。")
 	return lines
 
 func _apply_salary_reviews() -> Array[String]:
@@ -1047,7 +1194,7 @@ func _apply_salary_reviews() -> Array[String]:
 
 	var controlled_after: int = _calc_team_total_salary(controlled_team) if controlled_team != null else 0
 	if controlled_team != null:
-		lines.append("担当球団年俸更改: 総額 %d -> %d (%+d)" % [
+		lines.append("担当球団年俸更改: %d -> %d (%+d)" % [
 			controlled_before,
 			controlled_after,
 			controlled_after - controlled_before
@@ -1091,6 +1238,7 @@ func _apply_salary_review(player: PlayerData) -> void:
 
 	var eased_salary: int = int(round(float(base_salary) * 0.55 + float(target_salary) * 0.45))
 	player.salary = clampi(eased_salary, 180, 12000)
+	player.desired_salary = int(round(float(player.salary) * (1.00 + float(player.fa_interest) / 220.0)))
 
 func _calc_team_total_salary(team: TeamData) -> int:
 	if team == null:
@@ -1105,6 +1253,213 @@ func _calc_team_total_salary(team: TeamData) -> int:
 
 func get_team_total_salary(team_id: String) -> int:
 	return _calc_team_total_salary(get_team(team_id))
+
+func get_team_management_snapshot(team_id: String) -> Dictionary:
+	var team: TeamData = get_team(team_id)
+	if team == null:
+		return {}
+	return {
+		"team_name": team.name,
+		"budget": int(team.budget),
+		"fan_support": int(team.fan_support),
+		"total_salary": _calc_team_total_salary(team),
+		"sponsor_name": str(team.sponsor_name),
+		"sponsor_tier": int(team.sponsor_tier),
+		"daily_sponsor_income": _calc_daily_sponsor_income(team),
+		"daily_staff_cost": _calc_daily_staff_cost(team),
+		"facilities": team.facilities.duplicate(true),
+		"staff": team.staff.duplicate(true)
+	}
+
+func get_facility_upgrade_cost(team_id: String, facility_key: String) -> int:
+	var team: TeamData = get_team(team_id)
+	if team == null:
+		return -1
+	var current_level: int = int(team.facilities.get(facility_key, 1))
+	return 4000 + current_level * 2500
+
+func upgrade_team_facility(team_id: String, facility_key: String) -> Dictionary:
+	var team: TeamData = get_team(team_id)
+	if team == null:
+		return {"ok": false, "message": "球団データが見つかりません。"}
+	if not team.facilities.has(facility_key):
+		return {"ok": false, "message": "不明な施設です。"}
+	var current_level: int = int(team.facilities.get(facility_key, 1))
+	if current_level >= 5:
+		return {"ok": false, "message": "これ以上強化できません。"}
+	var cost: int = get_facility_upgrade_cost(team_id, facility_key)
+	if int(team.budget) < cost:
+		return {"ok": false, "message": "予算が不足しています。必要額: %d" % cost}
+	team.budget = int(team.budget) - cost
+	team.facilities[facility_key] = current_level + 1
+	return {
+		"ok": true,
+		"message": "%s をLv.%dに強化しました。予算 -%d" % [_get_facility_label(facility_key), current_level + 1, cost]
+	}
+
+func change_team_staff(team_id: String, staff_key: String, delta: int) -> Dictionary:
+	var team: TeamData = get_team(team_id)
+	if team == null:
+		return {"ok": false, "message": "球団データが見つかりません。"}
+	if not team.staff.has(staff_key):
+		return {"ok": false, "message": "不明なスタッフ種別です。"}
+	if delta == 0:
+		return {"ok": false, "message": "変更人数が0です。"}
+	var current_count: int = int(team.staff.get(staff_key, 0))
+	if delta < 0:
+		var min_count: int = 1
+		if current_count <= min_count:
+			return {"ok": false, "message": "%s はこれ以上減らせません。" % _get_staff_label(staff_key)}
+		team.staff[staff_key] = current_count - 1
+		return {"ok": true, "message": "%s を1人減らしました。" % _get_staff_label(staff_key)}
+	var hire_cost: int = 1800 + current_count * 1200
+	if int(team.budget) < hire_cost:
+		return {"ok": false, "message": "予算が不足しています。必要額: %d" % hire_cost}
+	team.budget = int(team.budget) - hire_cost
+	team.staff[staff_key] = current_count + 1
+	return {"ok": true, "message": "%s を1人雇用しました。予算 -%d" % [_get_staff_label(staff_key), hire_cost]}
+
+func pitch_team_sponsor(team_id: String) -> Dictionary:
+	var team: TeamData = get_team(team_id)
+	if team == null:
+		return {"ok": false, "message": "球団データが見つかりません。"}
+	var marketing_level: int = int(team.facilities.get("marketing", 1))
+	var scout_count: int = int(team.staff.get("scouts", 1))
+	var growth_roll: int = (marketing_level * 12) + (scout_count * 8) + int(team.fan_support / 4)
+	if growth_roll >= 55 and int(team.sponsor_tier) < 5:
+		team.sponsor_tier = int(team.sponsor_tier) + 1
+		team.sponsor_name = _roll_sponsor_name(team)
+		return {"ok": true, "message": "スポンサーがランクアップしました: %s / Tier %d" % [team.sponsor_name, int(team.sponsor_tier)]}
+	var bonus_budget: int = 1200 + marketing_level * 300
+	team.budget = int(team.budget) + bonus_budget
+	return {"ok": true, "message": "スポンサー営業が成功しました。予算 +%d" % bonus_budget}
+
+func get_controlled_team_contract_summary() -> Dictionary:
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return {}
+	var expiring_players: Array[PlayerData] = []
+	var fa_watch_players: Array[PlayerData] = []
+	for player_id in team.player_ids:
+		var player: PlayerData = get_player(str(player_id))
+		if player == null:
+			continue
+		if int(player.contract_years_left) <= 1:
+			expiring_players.append(player)
+		if int(player.fa_interest) >= 65:
+			fa_watch_players.append(player)
+	expiring_players.sort_custom(func(a: PlayerData, b: PlayerData) -> bool:
+		return int(a.overall) > int(b.overall)
+	)
+	fa_watch_players.sort_custom(func(a: PlayerData, b: PlayerData) -> bool:
+		return int(a.fa_interest) > int(b.fa_interest)
+	)
+	return {
+		"expiring_count": expiring_players.size(),
+		"expiring_players": expiring_players,
+		"fa_watch_players": fa_watch_players
+	}
+
+func renew_controlled_player_contract(player_id: String, years: int = 2) -> Dictionary:
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return {"ok": false, "message": "担当球団が見つかりません。"}
+	var player: PlayerData = get_player(player_id)
+	if player == null or not team.player_ids.has(player_id):
+		return {"ok": false, "message": "対象選手が担当球団に所属していません。"}
+	var requested_salary: int = maxi(int(player.salary), int(player.desired_salary))
+	var signing_bonus: int = int(round(float(requested_salary) * 0.6)) + years * 250
+	if int(team.budget) < signing_bonus:
+		return {"ok": false, "message": "予算が不足しています。必要額: %d" % signing_bonus}
+	team.budget = int(team.budget) - signing_bonus
+	player.salary = requested_salary
+	player.contract_years_left = clampi(int(player.contract_years_left) + years, 1, 5)
+	player.desired_salary = int(round(float(player.salary) * 1.08))
+	player.fa_interest = clampi(int(player.fa_interest) - 12, 0, 100)
+	return {
+		"ok": true,
+		"message": "%s と%d年契約を結びました。予算 -%d / 年俸 %d" % [player.full_name, years, signing_bonus, int(player.salary)]
+	}
+
+
+func get_fa_candidate_list() -> Array[Dictionary]:
+	var candidates: Array[Dictionary] = []
+	for team_id in teams.keys():
+		var team: TeamData = teams[team_id]
+		if team == null:
+			continue
+		for player_id in team.player_ids:
+			var player: PlayerData = get_player(str(player_id))
+			if player == null:
+				continue
+			var contract_left: int = int(player.contract_years_left)
+			var fa_interest_value: int = int(player.fa_interest)
+			if contract_left > 1 and fa_interest_value < 70:
+				continue
+			candidates.append({
+				"player_id": str(player.id),
+				"player_name": player.full_name,
+				"team_id": str(team.id),
+				"team_name": team.name,
+				"role": player.role,
+				"position": player.primary_position,
+				"overall": int(player.overall),
+				"age": int(player.age),
+				"salary": int(player.salary),
+				"desired_salary": int(player.desired_salary),
+				"contract_years_left": contract_left,
+				"fa_interest": fa_interest_value,
+				"is_controlled_team": str(team.id) == controlled_team_id
+			})
+	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var a_priority: int = 0 if int(a.get("contract_years_left", 9)) <= 1 else 1
+		var b_priority: int = 0 if int(b.get("contract_years_left", 9)) <= 1 else 1
+		if a_priority != b_priority:
+			return a_priority < b_priority
+		if int(a.get("overall", 0)) != int(b.get("overall", 0)):
+			return int(a.get("overall", 0)) > int(b.get("overall", 0))
+		return int(a.get("fa_interest", 0)) > int(b.get("fa_interest", 0))
+	)
+	return candidates
+
+func _roll_sponsor_name(team: TeamData) -> String:
+	var team_name: String = team.name if team != null else "球団"
+	var base_names: Array[String] = [
+		"商店街グループ",
+		"地元建設",
+		"河川敷フーズ",
+		"街角メディカル",
+		"ナイター工業",
+		"ストリート物流",
+		"下町不動産",
+		"北関東モータース"
+	]
+	var picked: String = base_names[abs(hash(team_name + str(team.sponsor_tier))) % base_names.size()]
+	return "%s %s" % [team_name.substr(0, mini(2, team_name.length())), picked]
+
+func _get_facility_label(facility_key: String) -> String:
+	match facility_key:
+		"training":
+			return "練習施設"
+		"medical":
+			return "医療施設"
+		"scouting":
+			return "スカウト施設"
+		"marketing":
+			return "営業施設"
+		_:
+			return facility_key
+
+func _get_staff_label(staff_key: String) -> String:
+	match staff_key:
+		"coaches":
+			return "コーチ"
+		"scouts":
+			return "スカウト"
+		"trainers":
+			return "トレーナー"
+		_:
+			return staff_key
 
 func _rebalance_team_payrolls() -> Array[String]:
 	var lines: Array[String] = []
@@ -1127,13 +1482,15 @@ func _rebalance_team_payrolls() -> Array[String]:
 
 		var adjusted_total: int = _calc_team_total_salary(team)
 		if str(team.id) == controlled_team_id:
-			lines.append("担当球団年俸調整: 予算に合わせて総額 %d -> %d" % [payroll_total, adjusted_total])
+			lines.append("担当球団年俸調整: %d -> %d" % [payroll_total, adjusted_total])
 
 	return lines
 
 func _apply_player_offseason(player: PlayerData) -> void:
+	var team: TeamData = _find_player_team(str(player.id))
 	player.age += 1
 	player.years_pro += 1
+	player.contract_years_left = maxi(0, int(player.contract_years_left) - 1)
 	player.fatigue = 0
 	player.condition = clampi(55 + int(player.morale / 2), 40, 100)
 	player.morale = clampi(int(player.morale) + 3, 0, 100)
@@ -1150,6 +1507,18 @@ func _apply_player_offseason(player: PlayerData) -> void:
 		growth_budget += 1
 	elif player.overall > player.potential + 5:
 		growth_budget -= 1
+
+	if team != null:
+		growth_budget += maxi(0, int(team.facilities.get("training", 1)) - 1)
+		growth_budget += maxi(0, int(team.staff.get("coaches", 2)) - 2)
+		if int(team.facilities.get("medical", 1)) >= 3:
+			player.injury_risk = maxf(0.01, float(player.injury_risk) - 0.002)
+		if int(team.staff.get("trainers", 1)) >= 2:
+			player.condition = clampi(int(player.condition) + 3, 0, 100)
+		if int(team.fan_support) >= 65:
+			player.fa_interest = clampi(int(player.fa_interest) - 3, 0, 100)
+		elif int(team.fan_support) <= 35:
+			player.fa_interest = clampi(int(player.fa_interest) + 4, 0, 100)
 
 	if player.is_pitcher():
 		_apply_rating_delta(player, "velocity", growth_budget)
@@ -1208,7 +1577,7 @@ func _process_retirements_and_replacements() -> Array[String]:
 			last_controlled_team_roster_log.clear()
 			last_controlled_team_roster_log.append("%s のオフ動向" % team.name)
 			if retired_names.is_empty() and added_names.is_empty():
-				last_controlled_team_roster_log.append("主な入れ替えはありません。")
+				last_controlled_team_roster_log.append("引退・加入はありませんでした。")
 			else:
 				for retired_name in retired_names:
 					last_controlled_team_roster_log.append("引退: %s" % retired_name)
@@ -1216,7 +1585,7 @@ func _process_retirements_and_replacements() -> Array[String]:
 					last_controlled_team_roster_log.append("加入: %s" % added_name)
 
 	if lines.is_empty():
-		lines.append("オフの引退・補充はありませんでした。")
+		lines.append("引退・新人補充はありませんでした。")
 	else:
 		lines.insert(0, "引退 %d人 / 新人補充 %d人" % [total_retired, total_added])
 
@@ -1263,6 +1632,13 @@ func _remove_player_from_team(team: TeamData, player_id: String) -> void:
 		team.bullpen["closer"] = ""
 	if str(team.bullpen.get("long", "")) == player_id:
 		team.bullpen["long"] = ""
+
+func _find_player_team(player_id: String) -> TeamData:
+	for team_id in all_team_ids():
+		var team: TeamData = get_team(team_id)
+		if team != null and team.player_ids.has(player_id):
+			return team
+	return null
 
 func _replenish_team_roster(team: TeamData, added_names: Array[String]) -> int:
 	var added_players: Array = []
@@ -1342,6 +1718,7 @@ func _replenish_team_roster(team: TeamData, added_names: Array[String]) -> int:
 	return added_players.size()
 
 func _build_replacement_pitcher(team_id: String, role_name: String) -> PlayerData:
+	var team: TeamData = get_team(team_id)
 	var next_player_id: String = _allocate_next_player_id(team_id)
 	var archetype: String = PlayerFactory._pick_pitcher_archetype(role_name)
 	var pitcher: PlayerData = PlayerFactory.build_pitcher(next_player_id, role_name, archetype)
@@ -1351,10 +1728,15 @@ func _build_replacement_pitcher(team_id: String, role_name: String) -> PlayerDat
 	pitcher.morale = 55
 	pitcher.condition = 60
 	pitcher.fatigue = 0
-	pitcher.overall = pitcher.calc_overall()
+	var scouting_boost: int = 0
+	if team != null:
+		scouting_boost = maxi(0, int(team.facilities.get("scouting", 1)) - 1) + maxi(0, int(team.staff.get("scouts", 1)) - 1)
+		pitcher.potential = clampi(int(pitcher.potential) + scouting_boost * 2, 40, 99)
+	pitcher.overall = clampi(pitcher.calc_overall() + scouting_boost, 1, 99)
 	return pitcher
 
 func _build_replacement_fielder(team_id: String, slot: String) -> PlayerData:
+	var team: TeamData = get_team(team_id)
 	var next_player_id: String = _allocate_next_player_id(team_id)
 	var base_position: String = slot
 	if slot == "UT":
@@ -1372,7 +1754,11 @@ func _build_replacement_fielder(team_id: String, slot: String) -> PlayerData:
 		fielder.secondary_positions.clear()
 		for util_position in ["2B", "3B", "SS", "LF", "CF", "RF"]:
 			fielder.secondary_positions.append(str(util_position))
-	fielder.overall = fielder.calc_overall()
+	var scouting_boost: int = 0
+	if team != null:
+		scouting_boost = maxi(0, int(team.facilities.get("scouting", 1)) - 1) + maxi(0, int(team.staff.get("scouts", 1)) - 1)
+		fielder.potential = clampi(int(fielder.potential) + scouting_boost * 2, 40, 99)
+	fielder.overall = clampi(fielder.calc_overall() + scouting_boost, 1, 99)
 	return fielder
 
 func _register_new_player(team: TeamData, player: PlayerData) -> void:
@@ -1570,6 +1956,12 @@ func to_save_dict() -> Dictionary:
 		"season_year": season_year,
 		"current_day": current_day,
 		"controlled_team_id": controlled_team_id,
+		"selected_game_id": selected_game_id,
+		"selected_match_mode": selected_match_mode,
+		"active_live_game_id": active_live_game_id,
+		"prepared_day": prepared_day,
+		"finalized_finance_day": finalized_finance_day,
+		"pending_home_message": pending_home_message,
 		"recent_events": recent_events.duplicate(),
 		"last_offseason_report": last_offseason_report.duplicate(),
 		"recent_finance_log": recent_finance_log.duplicate(),
@@ -1585,6 +1977,12 @@ func load_from_dict(data: Dictionary) -> void:
 	season_year = int(data.get("season_year", 1))
 	current_day = int(data.get("current_day", 1))
 	controlled_team_id = str(data.get("controlled_team_id", ""))
+	selected_game_id = str(data.get("selected_game_id", ""))
+	selected_match_mode = str(data.get("selected_match_mode", "replay"))
+	active_live_game_id = str(data.get("active_live_game_id", ""))
+	prepared_day = int(data.get("prepared_day", 0))
+	finalized_finance_day = int(data.get("finalized_finance_day", 0))
+	pending_home_message = str(data.get("pending_home_message", ""))
 	recent_events.clear()
 	for event_text in data.get("recent_events", []):
 		recent_events.append(str(event_text))
@@ -1627,6 +2025,7 @@ func load_from_dict(data: Dictionary) -> void:
 	current_day = clampi(current_day, 1, get_last_day())
 
 	_normalize_all_teams()
+	_sanitize_match_selection_state()
 
 	if controlled_team_id != "" and not teams.has(controlled_team_id):
 		controlled_team_id = ""

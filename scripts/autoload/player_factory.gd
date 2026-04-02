@@ -53,6 +53,9 @@ func build_fielder(player_id: String, pos: String, archetype: String):
 	p.potential = rng.randi_range(45, 90)
 	p.salary = rng.randi_range(300, 3000)
 	p.years_pro = maxi(1, p.age - 17)
+	p.contract_years_left = rng.randi_range(1, 4)
+	p.desired_salary = int(round(float(p.salary) * rng.randf_range(0.9, 1.2)))
+	p.fa_interest = rng.randi_range(35, 70)
 
 	match archetype:
 		"contact":
@@ -113,6 +116,9 @@ func build_pitcher(player_id: String, role_name: String, archetype: String):
 	p.potential = rng.randi_range(45, 92)
 	p.salary = rng.randi_range(400, 3500)
 	p.years_pro = maxi(1, p.age - 17)
+	p.contract_years_left = rng.randi_range(1, 4)
+	p.desired_salary = int(round(float(p.salary) * rng.randf_range(0.9, 1.2)))
+	p.fa_interest = rng.randi_range(35, 70)
 
 	match archetype:
 		"power":
@@ -240,6 +246,19 @@ func generate_team_roster(team_id: String, team_name: String) -> Dictionary:
 	team.budget = rng.randi_range(80000, 150000)
 	team.fan_support = rng.randi_range(35, 70)
 	team.strategy = ["balanced", "power", "speed", "defense", "pitching"][rng.randi_range(0, 4)]
+	team.sponsor_name = ["地元商店街連合", "中古車センター", "ラーメン街道", "建設グループ", "運送サービス", "家電ワークス"][rng.randi_range(0, 5)]
+	team.sponsor_tier = rng.randi_range(1, 2)
+	team.facilities = {
+		"training": rng.randi_range(1, 2),
+		"medical": 1,
+		"scouting": 1,
+		"marketing": 1
+	}
+	team.staff = {
+		"coaches": rng.randi_range(2, 3),
+		"scouts": 1,
+		"trainers": 1
+	}
 
 	var created_players: Array = []
 	var player_index: int = 1

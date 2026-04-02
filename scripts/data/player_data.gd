@@ -23,6 +23,9 @@ var condition: int = 50
 
 var salary: int = 500
 var years_pro: int = 1
+var contract_years_left: int = 2
+var desired_salary: int = 500
+var fa_interest: int = 50
 
 var ratings: Dictionary = {
 	"contact": 50,
@@ -130,6 +133,9 @@ func to_dict() -> Dictionary:
 		"condition": condition,
 		"salary": salary,
 		"years_pro": years_pro,
+		"contract_years_left": contract_years_left,
+		"desired_salary": desired_salary,
+		"fa_interest": fa_interest,
 		"ratings": ratings.duplicate(true),
 		"pitch_types": pitch_types.duplicate(),
 		"traits": traits.duplicate(),
@@ -156,6 +162,9 @@ static func from_dict(d: Dictionary):
 	p.condition = int(d.get("condition", 50))
 	p.salary = int(d.get("salary", 500))
 	p.years_pro = int(d.get("years_pro", 1))
+	p.contract_years_left = int(d.get("contract_years_left", 2))
+	p.desired_salary = int(d.get("desired_salary", p.salary))
+	p.fa_interest = int(d.get("fa_interest", 50))
 
 	p.secondary_positions.clear()
 	for value in d.get("secondary_positions", []):

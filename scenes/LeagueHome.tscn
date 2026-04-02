@@ -60,6 +60,10 @@ text = ""
 layout_mode = 2
 text = ""
 
+[node name="FrontOfficeButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="ProgressCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 size_flags_horizontal = 3

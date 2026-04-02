@@ -65,6 +65,46 @@ text = ""
 layout_mode = 2
 text = ""
 
+[node name="PauseModeHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PauseModeTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/PauseModeHBox"]
+layout_mode = 2
+text = ""
+
+[node name="PauseNoneButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/PauseModeHBox"]
+layout_mode = 2
+text = ""
+
+[node name="PauseChanceButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/PauseModeHBox"]
+layout_mode = 2
+text = ""
+
+[node name="PausePinchButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/PauseModeHBox"]
+layout_mode = 2
+text = ""
+
+[node name="PauseImportantButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/PauseModeHBox"]
+layout_mode = 2
+text = ""
+
+[node name="StepModeHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StepModeTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/StepModeHBox"]
+layout_mode = 2
+text = ""
+
+[node name="PitchStepButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StepModeHBox"]
+layout_mode = 2
+text = ""
+
+[node name="AtBatStepButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StepModeHBox"]
+layout_mode = 2
+text = ""
+
 [node name="HeaderInfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
@@ -139,9 +179,29 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = ""
 
+[node name="ResultButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ControlButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="NextButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ControlButtonsHBox"]
 layout_mode = 2
 text = ""
+
+[node name="PostgameVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PostgameTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/PostgameVBox"]
+layout_mode = 2
+text = ""
+
+[node name="PostgameDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/PostgameVBox"]
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
 
 [node name="CommandVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
