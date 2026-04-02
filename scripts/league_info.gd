@@ -515,27 +515,64 @@ func _refresh_standings() -> void:
 	header_label.text = "順位  球団名  勝  敗  分  得  失  勝率  総合"
 	standings_vbox.add_child(header_label)
 
-	for i in range(summaries.size()):
-		var summary: Dictionary = summaries[i]
-		var label: Label = Label.new()
-		label.custom_minimum_size = Vector2(0, 28)
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		var team_id: String = str(summary["id"])
-		var prefix: String = "%d." % [i + 1]
-		if team_id == LeagueState.controlled_team_id:
-			prefix = "%d.*" % [i + 1]
-		label.text = "%s %-10s  %2s  %2s  %2s  %3s  %3s  %.3f  %.1f" % [
-			prefix,
-			str(summary["name"]),
-			str(summary["wins"]),
-			str(summary["losses"]),
-			str(summary["draws"]),
-			str(summary["runs_for"]),
-			str(summary["runs_against"]),
-			float(summary["win_pct"]),
-			float(summary["total"])
-		]
-		standings_vbox.add_child(label)
+	var grouped: Dictionary = {}
+	for summary in summaries:
+		var league_key: String = str(summary.get("league", ""))
+		if not grouped.has(league_key):
+			grouped[league_key] = []
+		grouped[league_key].append(summary)
+
+	var league_order: Array[String] = ["metropolitan", "frontier"]
+	for league_key in grouped.keys():
+		var league_key_str: String = str(league_key)
+		if not league_order.has(league_key_str):
+			league_order.append(league_key_str)
+
+	for league_key in league_order:
+		if not grouped.has(league_key):
+			continue
+		var league_title_label: Label = Label.new()
+		league_title_label.custom_minimum_size = Vector2(0, 28)
+		league_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		league_title_label.text = _get_league_display_name(league_key)
+		standings_vbox.add_child(league_title_label)
+
+		var league_summaries: Array = grouped[league_key]
+		for i in range(league_summaries.size()):
+			var summary: Dictionary = league_summaries[i]
+			var label: Label = Label.new()
+			label.custom_minimum_size = Vector2(0, 28)
+			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			var team_id: String = str(summary["id"])
+			var prefix: String = "%d." % [i + 1]
+			if team_id == LeagueState.controlled_team_id:
+				prefix = "%d.*" % [i + 1]
+			label.text = "%s %-10s  %2s  %2s  %2s  %3s  %3s  %.3f  %.1f" % [
+				prefix,
+				str(summary["name"]),
+				str(summary["wins"]),
+				str(summary["losses"]),
+				str(summary["draws"]),
+				str(summary["runs_for"]),
+				str(summary["runs_against"]),
+				float(summary["win_pct"]),
+				float(summary["total"])
+			]
+			standings_vbox.add_child(label)
+
+		var spacer: Label = Label.new()
+		spacer.custom_minimum_size = Vector2(0, 12)
+		spacer.text = ""
+		standings_vbox.add_child(spacer)
+
+func _get_league_display_name(league_key: String) -> String:
+	match league_key:
+		"metropolitan":
+			return "メトロポリタン・リーグ"
+		"frontier":
+			return "フロンティア・リーグ"
+		_:
+			return "%s リーグ" % league_key
 
 func _refresh_recent_games() -> void:
 	for child in recent_games_vbox.get_children():

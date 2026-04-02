@@ -359,48 +359,91 @@ func _build_schedule_blocks(team_ids: Array[String]) -> Array:
 	if team_ids.size() < 2:
 		return blocks
 
-	var base_rounds: Array = _build_round_robin_rounds(team_ids)
-	for cycle in range(REGULAR_SERIES_CYCLE_COUNT):
-		for round_index in range(base_rounds.size()):
-			var pairings: Array = []
-			var base_round: Array = base_rounds[round_index]
-			for matchup in base_round:
-				var home_team_id: String = str(matchup["home_team_id"])
-				var away_team_id: String = str(matchup["away_team_id"])
-				if cycle % 2 == 1:
-					var temp_id: String = home_team_id
-					home_team_id = away_team_id
-					away_team_id = temp_id
-				pairings.append({
-					"home_team_id": home_team_id,
-					"away_team_id": away_team_id
-				})
-			blocks.append({
-				"games_per_matchup": 3,
-				"pairings": pairings
-			})
+	var league_groups: Dictionary = {}
+	for team_info in team_master:
+		var league_key: String = str(team_info.get("league", ""))
+		if not league_groups.has(league_key):
+			league_groups[league_key] = []
+		league_groups[league_key].append(str(team_info.get("id", "")))
 
-	for extra_cycle in range(EXTRA_SINGLE_GAME_CYCLE_COUNT):
-		for round_index in range(base_rounds.size()):
-			var single_pairings: Array = []
-			var base_round: Array = base_rounds[round_index]
-			for matchup in base_round:
-				var home_team_id: String = str(matchup["home_team_id"])
-				var away_team_id: String = str(matchup["away_team_id"])
-				if (REGULAR_SERIES_CYCLE_COUNT + extra_cycle) % 2 == 1:
-					var temp_id: String = home_team_id
-					home_team_id = away_team_id
-					away_team_id = temp_id
-				single_pairings.append({
-					"home_team_id": home_team_id,
-					"away_team_id": away_team_id
+	var league_keys: Array[String] = []
+	for league_key in league_groups.keys():
+		league_keys.append(str(league_key))
+	league_keys.sort()
+
+	for cycle in range(7):
+		for league_key in league_keys:
+			var league_team_ids: Array[String] = []
+			for team_id in league_groups[league_key]:
+				league_team_ids.append(str(team_id))
+			var base_rounds: Array = _build_round_robin_rounds(league_team_ids)
+			for base_round in base_rounds:
+				var pairings: Array = []
+				for matchup in base_round:
+					var home_team_id: String = str(matchup["home_team_id"])
+					var away_team_id: String = str(matchup["away_team_id"])
+					if cycle % 2 == 1:
+						var temp_id: String = home_team_id
+						home_team_id = away_team_id
+						away_team_id = temp_id
+					pairings.append({
+						"home_team_id": home_team_id,
+						"away_team_id": away_team_id
+					})
+				blocks.append({
+					"games_per_matchup": 3,
+					"pairings": pairings,
+					"block_type": "league"
 				})
-			blocks.append({
-				"games_per_matchup": 1,
-				"pairings": single_pairings
-			})
+
+	if league_keys.size() >= 2:
+		var first_league_ids: Array[String] = []
+		for team_id in league_groups[league_keys[0]]:
+			first_league_ids.append(str(team_id))
+		var second_league_ids: Array[String] = []
+		for team_id in league_groups[league_keys[1]]:
+			second_league_ids.append(str(team_id))
+		var interleague_rounds: Array = _build_interleague_rounds(first_league_ids, second_league_ids)
+		for cycle in range(2):
+			for inter_round in interleague_rounds:
+				var pairings: Array = []
+				for matchup in inter_round:
+					var home_team_id: String = str(matchup["home_team_id"])
+					var away_team_id: String = str(matchup["away_team_id"])
+					if cycle % 2 == 1:
+						var temp_id: String = home_team_id
+						home_team_id = away_team_id
+						away_team_id = temp_id
+					pairings.append({
+						"home_team_id": home_team_id,
+						"away_team_id": away_team_id
+					})
+				blocks.append({
+					"games_per_matchup": 3,
+					"pairings": pairings,
+					"block_type": "interleague"
+				})
 
 	return blocks
+
+func _build_interleague_rounds(first_league_ids: Array[String], second_league_ids: Array[String]) -> Array:
+	var rounds: Array = []
+	if first_league_ids.is_empty() or second_league_ids.is_empty():
+		return rounds
+	var left: Array[String] = first_league_ids.duplicate()
+	var right: Array[String] = second_league_ids.duplicate()
+	var round_count: int = mini(left.size(), right.size())
+	for _round_index in range(round_count):
+		var pairings: Array = []
+		for i in range(mini(left.size(), right.size())):
+			pairings.append({
+				"home_team_id": left[i],
+				"away_team_id": right[i]
+			})
+		rounds.append(pairings)
+		if right.size() > 1:
+			right.push_front(right.pop_back())
+	return rounds
 
 func _build_round_robin_rounds(team_ids: Array[String]) -> Array:
 	var rounds: Array = []
@@ -2723,9 +2766,11 @@ func get_league_team_summaries() -> Array:
 	var sorted_teams: Array = get_teams_sorted_by_win_pct()
 
 	for team in sorted_teams:
+		var league_key: String = _get_team_league_key(str(team.id))
 		result.append({
 			"id": team.id,
 			"name": team.name,
+			"league": league_key,
 			"wins": team.standings["wins"],
 			"losses": team.standings["losses"],
 			"draws": team.standings["draws"],
@@ -2738,6 +2783,12 @@ func get_league_team_summaries() -> Array:
 		})
 
 	return result
+
+func _get_team_league_key(team_id: String) -> String:
+	for team_info in team_master:
+		if str(team_info.get("id", "")) == team_id:
+			return str(team_info.get("league", ""))
+	return ""
 
 func get_team_full_roster(team_id: String) -> Array:
 	var team = get_team(team_id)
