@@ -92,6 +92,12 @@ func _refresh_overview() -> void:
 	var next_game_day: int = LeagueState.get_next_game_day(LeagueState.current_day, LeagueState.controlled_team_id)
 	if next_game_day >= 0:
 		lines.append("担当球団の次戦: %s" % LeagueState.get_date_label_for_day(next_game_day))
+	var upcoming_events: Array[Dictionary] = LeagueState.get_upcoming_calendar_events(3)
+	if not upcoming_events.is_empty():
+		lines.append("")
+		lines.append("次に来るイベント")
+		for event_data in upcoming_events:
+			lines.append("- %s  %s" % [str(event_data.get("date_label", "")), str(event_data.get("label", ""))])
 
 	overview_detail_label.text = "\n".join(lines)
 
@@ -155,6 +161,9 @@ func _refresh_season_status() -> void:
 		_:
 			lines.append("状態: オフシーズン")
 			lines.append("年末を越えると自動で次年度へ移行します。")
+	lines.append("")
+	lines.append("今日の年間イベント")
+	lines.append(LeagueState.get_calendar_summary_text())
 	var latest_summary: Dictionary = LeagueState.get_latest_completed_season_summary()
 	if not latest_summary.is_empty():
 		lines.append("")
@@ -308,14 +317,17 @@ func _refresh_league_leaders() -> void:
 	pitching_leaders_label.text = "\n".join(pitching_lines)
 
 func _refresh_daily_events() -> void:
+	var lines: Array[String] = []
+	lines.append("今日の年間イベント")
+	lines.append(LeagueState.get_calendar_summary_text())
+	lines.append("")
+	lines.append("ストリートニュース")
 	var events: Array[String] = LeagueState.get_recent_events()
 	if events.is_empty():
-		event_detail_label.text = "今日は特別なイベントなし"
-		return
-
-	var lines: Array[String] = []
-	for event_text in events:
-		lines.append("- " + str(event_text))
+		lines.append("- 今日は特別なニュースはありません。")
+	else:
+		for event_text in events:
+			lines.append("- " + str(event_text))
 	event_detail_label.text = "\n".join(lines)
 
 func _refresh_controlled_team_schedule() -> void:

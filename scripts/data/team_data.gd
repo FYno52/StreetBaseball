@@ -7,7 +7,7 @@ var short_name: String = ""
 
 var budget: int = 100000
 var fan_support: int = 50
-var strategy: String = "balanced" # balanced / power / speed / defense / pitching
+var strategy: String = "balanced"
 var sponsor_name: String = "地元商店街連合"
 var sponsor_tier: int = 1
 

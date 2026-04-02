@@ -3,6 +3,7 @@
 const TEAM_SELECT_SCENE_PATH := "res://scenes/TeamSelect.tscn"
 const TEAM_MANAGEMENT_SCENE_PATH := "res://scenes/TeamManagement.tscn"
 const LEAGUE_INFO_SCENE_PATH := "res://scenes/LeagueInfo.tscn"
+const CALENDAR_SCENE_PATH := "res://scenes/CalendarScene.tscn"
 const ROSTER_VIEW_SCENE_PATH := "res://scenes/RosterView.tscn"
 const MATCH_SCENE_PATH := "res://scenes/MatchScene.tscn"
 const FRONT_OFFICE_SCENE_PATH := "res://scenes/FrontOffice.tscn"
@@ -11,6 +12,7 @@ const FRONT_OFFICE_SCENE_PATH := "res://scenes/FrontOffice.tscn"
 @onready var nav_info_label: Label = $RootScroll/MarginContainer/RootVBox/NavInfoLabel
 @onready var team_management_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/TeamManagementButton
 @onready var league_info_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/LeagueInfoButton
+@onready var calendar_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/CalendarButton
 @onready var roster_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/RosterButton
 @onready var front_office_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/FrontOfficeButton
 @onready var sim_day_button: Button = $RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox/SimDayButton
@@ -67,6 +69,7 @@ func _exit_tree() -> void:
 func _connect_buttons() -> void:
 	team_management_button.pressed.connect(_on_team_management_button_pressed)
 	league_info_button.pressed.connect(_on_league_info_button_pressed)
+	calendar_button.pressed.connect(_on_calendar_button_pressed)
 	roster_button.pressed.connect(_on_roster_button_pressed)
 	front_office_button.pressed.connect(_on_front_office_button_pressed)
 	sim_day_button.pressed.connect(_on_sim_day_button_pressed)
@@ -83,6 +86,7 @@ func _setup_static_text() -> void:
 	title_label.text = "ストリート野球"
 	team_management_button.text = "チーム管理へ"
 	league_info_button.text = "リーグ情報へ"
+	calendar_button.text = "年間カレンダーへ"
 	roster_button.text = "選手一覧へ"
 	front_office_button.text = "球団運営へ"
 	sim_day_button.text = "1日進める"
@@ -134,6 +138,15 @@ func _refresh_season_status() -> void:
 		lines.append("開幕予定: %s" % LeagueState.get_date_label_for_day(first_game_day))
 	if final_game_day > 0:
 		lines.append("最終戦予定: %s" % LeagueState.get_date_label_for_day(final_game_day))
+	lines.append("")
+	lines.append("今日の年間イベント")
+	lines.append(LeagueState.get_calendar_summary_text())
+	var upcoming_events: Array[Dictionary] = LeagueState.get_upcoming_calendar_events(3)
+	if not upcoming_events.is_empty():
+		lines.append("")
+		lines.append("次に来るイベント")
+		for event_data in upcoming_events:
+			lines.append("- %s  %s" % [str(event_data.get("date_label", "")), str(event_data.get("label", ""))])
 
 	var offseason_report: Array[String] = LeagueState.get_last_offseason_report()
 	if not offseason_report.is_empty() and LeagueState.current_day <= 14:
@@ -197,8 +210,9 @@ func _refresh_focus_team_summary() -> void:
 
 func _refresh_today_summary() -> void:
 	var today_games: Array = LeagueState.get_games_for_day(LeagueState.current_day)
+	var calendar_summary: String = LeagueState.get_calendar_summary_text()
 	if today_games.is_empty():
-		today_detail_label.text = "今日は試合予定がありません。\n休養日または移動日として進行します。"
+		today_detail_label.text = "%s\n\n今日は試合予定がありません。\n休養日または移動日として進行します。" % calendar_summary
 		return
 
 	var lines: Array[String] = []
@@ -213,6 +227,8 @@ func _refresh_today_summary() -> void:
 		var game: GameData = game_value
 		lines.append("- %s" % _format_game_card(game))
 
+	lines.append("")
+	lines.append(calendar_summary)
 	today_detail_label.text = "\n".join(lines)
 
 
@@ -488,6 +504,10 @@ func _on_team_management_button_pressed() -> void:
 func _on_league_info_button_pressed() -> void:
 	auto_progress_active = false
 	get_tree().change_scene_to_file(LEAGUE_INFO_SCENE_PATH)
+
+func _on_calendar_button_pressed() -> void:
+	auto_progress_active = false
+	get_tree().change_scene_to_file(CALENDAR_SCENE_PATH)
 
 
 func _on_roster_button_pressed() -> void:

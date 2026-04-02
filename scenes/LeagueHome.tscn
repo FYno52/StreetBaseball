@@ -56,6 +56,10 @@ text = ""
 layout_mode = 2
 text = ""
 
+[node name="CalendarButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="RosterButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
 layout_mode = 2
 text = ""

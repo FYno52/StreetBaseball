@@ -1,4 +1,4 @@
-extends Control
+﻿extends Control
 
 const FRONT_OFFICE_SCENE_PATH := "res://scenes/FrontOffice.tscn"
 const FA_MARKET_SCENE_PATH := "res://scenes/FAMarket.tscn"
@@ -32,19 +32,29 @@ func _ready() -> void:
 func _refresh_view() -> void:
 	var team: TeamData = LeagueState.get_controlled_team()
 	if team == null:
-		info_label.text = "担当球団が未設定です。"
+		info_label.text = "担当球団が設定されていません。"
 		contract_detail_label.text = "-"
 		return
+
+	var is_contract_period: bool = LeagueState.is_contract_period()
 	var summary: Dictionary = LeagueState.get_controlled_team_contract_summary()
 	var expiring_players: Array = summary.get("expiring_players", [])
 	var fa_watch_players: Array = summary.get("fa_watch_players", [])
-	info_label.text = "%s の契約切れ間近選手を確認し、必要ならその場で更改します。" % team.name
 	_contract_button_player_ids = ["", "", ""]
+
+	if is_contract_period:
+		info_label.text = "%s の契約更改を進める期間です。必要ならこの場で契約延長できます。" % team.name
+	else:
+		info_label.text = "%s の契約状況を確認する画面です。契約更改は 11月の契約更改期間に行えます。" % team.name
+
 	var lines: Array[String] = []
+	lines.append("今日の年間イベント")
+	lines.append(LeagueState.get_calendar_summary_text())
+	lines.append("")
 	if expiring_players.is_empty():
 		lines.append("契約切れ間近の選手はいません。")
 	else:
-		lines.append("残り1年以下の選手:")
+		lines.append("残り1年以下の選手")
 		for i in range(mini(3, expiring_players.size())):
 			var player: PlayerData = expiring_players[i]
 			_contract_button_player_ids[i] = str(player.id)
@@ -61,20 +71,31 @@ func _refresh_view() -> void:
 		for i in range(mini(5, fa_watch_players.size())):
 			var fa_player: PlayerData = fa_watch_players[i]
 			fa_names.append("%s(FA志向%d)" % [fa_player.full_name, int(fa_player.fa_interest)])
+		lines.append("")
 		lines.append("FA注意: " + ", ".join(fa_names))
 	contract_detail_label.text = "\n".join(lines)
+
 	var buttons: Array[Button] = [contract_player_1_button, contract_player_2_button, contract_player_3_button]
 	for i in range(buttons.size()):
 		var button: Button = buttons[i]
 		if _contract_button_player_ids[i] != "":
 			button.visible = true
-			button.disabled = false
+			button.disabled = not is_contract_period
 			button.text = "%s を2年更改" % expiring_players[i].full_name
 		else:
 			button.visible = false
 			button.disabled = true
 
+	fa_market_button.disabled = not LeagueState.is_fa_period()
+	if not LeagueState.is_fa_period():
+		status_label.text = "FA候補一覧は FA交渉期間 に開放されます。"
+	else:
+		status_label.text = ""
+
 func _renew_contract_from_slot(slot_index: int) -> void:
+	if not LeagueState.is_contract_period():
+		status_label.text = "契約更改は契約更改期間のみ行えます。"
+		return
 	if slot_index < 0 or slot_index >= _contract_button_player_ids.size():
 		return
 	var player_id: String = _contract_button_player_ids[slot_index]

@@ -1,4 +1,4 @@
-extends Node
+﻿extends Node
 
 const TEAM_DATA_SCRIPT = preload("res://scripts/data/team_data.gd")
 const PLAYER_DATA_SCRIPT = preload("res://scripts/data/player_data.gd")
@@ -8,6 +8,36 @@ const CALENDAR_START_MONTH := 1
 const CALENDAR_START_DAY := 1
 const SEASON_START_MONTH := 3
 const SEASON_START_DAY := 27
+const SPRING_CAMP_START_MONTH := 2
+const SPRING_CAMP_START_DAY := 1
+const SPRING_CAMP_END_MONTH := 2
+const SPRING_CAMP_END_DAY := 28
+const OPEN_GAME_START_MONTH := 3
+const OPEN_GAME_START_DAY := 1
+const OPEN_GAME_END_MONTH := 3
+const OPEN_GAME_END_DAY := 26
+const DRAFT_PREP_START_MONTH := 10
+const DRAFT_PREP_START_DAY := 20
+const DRAFT_PREP_END_MONTH := 10
+const DRAFT_PREP_END_DAY := 26
+const DRAFT_DAY_MONTH := 10
+const DRAFT_DAY_DAY := 27
+const CONTRACT_PERIOD_START_MONTH := 11
+const CONTRACT_PERIOD_START_DAY := 1
+const CONTRACT_PERIOD_END_MONTH := 11
+const CONTRACT_PERIOD_END_DAY := 30
+const FA_PERIOD_START_MONTH := 11
+const FA_PERIOD_START_DAY := 15
+const FA_PERIOD_END_MONTH := 11
+const FA_PERIOD_END_DAY := 30
+const SPONSOR_PERIOD_START_MONTH := 12
+const SPONSOR_PERIOD_START_DAY := 1
+const SPONSOR_PERIOD_END_MONTH := 12
+const SPONSOR_PERIOD_END_DAY := 20
+const STAFF_REVIEW_START_MONTH := 1
+const STAFF_REVIEW_START_DAY := 10
+const STAFF_REVIEW_END_MONTH := 1
+const STAFF_REVIEW_END_DAY := 31
 const REGULAR_SERIES_CYCLE_COUNT := 9
 const EXTRA_SINGLE_GAME_CYCLE_COUNT := 1
 const WEEKDAY_NAMES := ["日", "月", "火", "水", "木", "金", "土"]
@@ -474,6 +504,132 @@ func _normalize_schedule_metadata() -> void:
 func get_current_date_label() -> String:
 	return get_date_label_for_day(current_day)
 
+func get_calendar_events_for_day(day: int) -> Array[Dictionary]:
+	var date_info: Dictionary = get_date_info_for_day(day)
+	var month: int = int(date_info.get("month", 1))
+	var day_of_month: int = int(date_info.get("day", 1))
+	var events: Array[Dictionary] = []
+
+	if _is_date_in_range(month, day_of_month, SPRING_CAMP_START_MONTH, SPRING_CAMP_START_DAY, SPRING_CAMP_END_MONTH, SPRING_CAMP_END_DAY):
+		events.append({
+			"type": "spring_camp",
+			"label": "春季キャンプ",
+			"summary": "若手育成と調整を進める時期です。施設とスタッフ効果が出やすくなります。"
+		})
+	if _is_date_in_range(month, day_of_month, OPEN_GAME_START_MONTH, OPEN_GAME_START_DAY, OPEN_GAME_END_MONTH, OPEN_GAME_END_DAY):
+		events.append({
+			"type": "open_games",
+			"label": "オープン戦期間",
+			"summary": "開幕前の調整期間です。打線やローテの確認に向いています。"
+		})
+	if month == SEASON_START_MONTH and day_of_month == SEASON_START_DAY:
+		events.append({
+			"type": "opening_day",
+			"label": "開幕日",
+			"summary": "公式戦が開幕します。ここからシーズン本番です。"
+		})
+	if _is_date_in_range(month, day_of_month, DRAFT_PREP_START_MONTH, DRAFT_PREP_START_DAY, DRAFT_PREP_END_MONTH, DRAFT_PREP_END_DAY):
+		events.append({
+			"type": "draft_prep",
+			"label": "ドラフト準備期間",
+			"summary": "スカウト候補を整理して、注目選手を絞り込む時期です。"
+		})
+	if month == DRAFT_DAY_MONTH and day_of_month == DRAFT_DAY_DAY:
+		events.append({
+			"type": "draft_day",
+			"label": "ドラフト会議",
+			"summary": "新人指名を行う日です。スカウト成果を反映する本番です。"
+		})
+	if _is_date_in_range(month, day_of_month, CONTRACT_PERIOD_START_MONTH, CONTRACT_PERIOD_START_DAY, CONTRACT_PERIOD_END_MONTH, CONTRACT_PERIOD_END_DAY):
+		events.append({
+			"type": "contract_period",
+			"label": "契約更改期間",
+			"summary": "契約更改を進められる期間です。年俸や残留を整理します。"
+		})
+	if _is_date_in_range(month, day_of_month, FA_PERIOD_START_MONTH, FA_PERIOD_START_DAY, FA_PERIOD_END_MONTH, FA_PERIOD_END_DAY):
+		events.append({
+			"type": "fa_period",
+			"label": "FA交渉期間",
+			"summary": "FA候補との交渉が本格化する期間です。"
+		})
+	if _is_date_in_range(month, day_of_month, SPONSOR_PERIOD_START_MONTH, SPONSOR_PERIOD_START_DAY, SPONSOR_PERIOD_END_MONTH, SPONSOR_PERIOD_END_DAY):
+		events.append({
+			"type": "sponsor_period",
+			"label": "スポンサー更改期間",
+			"summary": "スポンサー営業や契約更新を進めやすい時期です。"
+		})
+	if _is_date_in_range(month, day_of_month, STAFF_REVIEW_START_MONTH, STAFF_REVIEW_START_DAY, STAFF_REVIEW_END_MONTH, STAFF_REVIEW_END_DAY):
+		events.append({
+			"type": "staff_review",
+			"label": "スタッフ見直し期間",
+			"summary": "スタッフ体制の見直しや補強を行いやすい時期です。"
+		})
+
+	return events
+
+func get_today_calendar_events() -> Array[Dictionary]:
+	return get_calendar_events_for_day(current_day)
+
+func get_upcoming_calendar_events(max_count: int = 5, from_day: int = -1) -> Array[Dictionary]:
+	var target_day: int = current_day if from_day <= 0 else from_day
+	var result: Array[Dictionary] = []
+	var seen_signatures: Dictionary = {}
+	for day in range(target_day + 1, get_last_day() + 1):
+		for event_data in get_calendar_events_for_day(day):
+			var event_type: String = str(event_data.get("type", ""))
+			var signature: String = "%s_%d" % [event_type, day]
+			if seen_signatures.has(signature):
+				continue
+			seen_signatures[signature] = true
+			result.append({
+				"day": day,
+				"date_label": get_date_label_for_day(day),
+				"type": event_type,
+				"label": str(event_data.get("label", "")),
+				"summary": str(event_data.get("summary", ""))
+			})
+			if result.size() >= max_count:
+				return result
+	return result
+
+func is_contract_period(day: int = -1) -> bool:
+	var target_day: int = current_day if day <= 0 else day
+	return _calendar_event_exists(target_day, "contract_period")
+
+func is_fa_period(day: int = -1) -> bool:
+	var target_day: int = current_day if day <= 0 else day
+	return _calendar_event_exists(target_day, "fa_period")
+
+func is_draft_prep_period(day: int = -1) -> bool:
+	var target_day: int = current_day if day <= 0 else day
+	return _calendar_event_exists(target_day, "draft_prep")
+
+func is_draft_day(day: int = -1) -> bool:
+	var target_day: int = current_day if day <= 0 else day
+	return _calendar_event_exists(target_day, "draft_day")
+
+func get_calendar_summary_text(day: int = -1) -> String:
+	var target_day: int = current_day if day <= 0 else day
+	var events: Array[Dictionary] = get_calendar_events_for_day(target_day)
+	if events.is_empty():
+		return "今日は大きな年間イベントはありません。"
+	var lines: Array[String] = []
+	for event_data in events:
+		lines.append("%s: %s" % [str(event_data.get("label", "")), str(event_data.get("summary", ""))])
+	return "\n".join(lines)
+
+func _calendar_event_exists(day: int, event_type: String) -> bool:
+	for event_data in get_calendar_events_for_day(day):
+		if str(event_data.get("type", "")) == event_type:
+			return true
+	return false
+
+func _is_date_in_range(month: int, day_of_month: int, start_month: int, start_day: int, end_month: int, end_day: int) -> bool:
+	var current_value: int = month * 100 + day_of_month
+	var start_value: int = start_month * 100 + start_day
+	var end_value: int = end_month * 100 + end_day
+	return current_value >= start_value and current_value <= end_value
+
 func advance_day() -> void:
 	current_day += 1
 
@@ -881,7 +1037,7 @@ func _apply_team_game_day_finance(team: TeamData, is_home_game: bool, day: int) 
 	team.budget = maxi(0, int(team.budget) + net_change)
 
 	if str(team.id) == controlled_team_id:
-		var line: String = "%s  鬮ｯ・ｷ繝ｻ・ｿ髯ｷ・ｿ陞滓・・ｽ・ｫ繝ｻ・ｪ %s%d  鬮ｯ・ｷ髣鯉ｽｨ繝ｻ・ｽ繝ｻ・･鬮ｯ諛ｶ・ｽ・｣郢晢ｽｻ繝ｻ・ｴ+%d  鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢隴弱・・ｺ・｢繝ｻ雜｣・ｽ・ｦ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｵ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｼ+%d  鬮｣雋ｻ・｣・ｰ郢晢ｽｻ繝ｻ・ｺ鬮｣豈費ｽｼ螟ｲ・ｽ・ｽ繝ｻ・ｶ鬯ｮ・ｮ陷茨ｽｷ繝ｻ・ｽ繝ｻ・ｻ-%d  鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｹ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｿ鬩幢ｽ｢隴擾ｽｴ郢晢ｽｻ驛｢譎｢・ｽ・ｵ-%d  %s-%d" % [
+		var line: String = "%s  鬯ｮ・ｯ繝ｻ・ｷ郢晢ｽｻ繝ｻ・ｿ鬮ｯ・ｷ繝ｻ・ｿ髯樊ｻ薙・繝ｻ・ｽ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｪ %s%d  鬯ｮ・ｯ繝ｻ・ｷ鬮｣魃会ｽｽ・ｨ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・･鬯ｮ・ｯ隲幢ｽｶ繝ｻ・ｽ繝ｻ・｣驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｴ+%d  鬯ｩ蟷｢・ｽ・｢郢晢ｽｻ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｹ鬯ｩ蟷｢・ｽ・｢髫ｴ蠑ｱ繝ｻ繝ｻ・ｺ繝ｻ・｢郢晢ｽｻ髮懶ｽ｣繝ｻ・ｽ繝ｻ・ｦ鬯ｩ蟷｢・ｽ・｢郢晢ｽｻ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｵ鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｼ+%d  鬯ｮ・｣髮具ｽｻ繝ｻ・｣繝ｻ・ｰ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｺ鬯ｮ・｣雎郁ｲｻ・ｽ・ｼ陞滂ｽｲ繝ｻ・ｽ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｶ鬯ｯ・ｮ繝ｻ・ｮ髯ｷ闌ｨ・ｽ・ｷ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ-%d  鬯ｩ蟷｢・ｽ・｢郢晢ｽｻ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｹ鬯ｩ蟷｢・ｽ・｢郢晢ｽｻ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｿ鬯ｩ蟷｢・ｽ・｢髫ｴ謫ｾ・ｽ・ｴ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｵ-%d  %s-%d" % [
 			get_date_label_for_day(day),
 			"+" if net_change >= 0 else "",
 			net_change,
@@ -889,7 +1045,7 @@ func _apply_team_game_day_finance(team: TeamData, is_home_game: bool, day: int) 
 			sponsor_income,
 			payroll_cost,
 			staff_cost,
-			"鬯ｯ・ｩ陷肴ｺｷ鄂ｰ鬯ｮ・ｴ繝ｻ・ｧ鬯ｮ・ｮ陷茨ｽｷ繝ｻ・ｽ繝ｻ・ｻ" if is_home_game else "鬯ｯ・ｩ陋ｹ繝ｻ・ｽ・｣繝ｻ・ｰ鬮ｯ貅ｯ・｣諛亥合郢晢ｽｻ繝ｻ・ｲ郢晢ｽｻ繝ｻ・ｻ",
+			"鬯ｯ・ｯ繝ｻ・ｩ髯ｷ閧ｴ・ｺ・ｷ驗ゑｽｰ鬯ｯ・ｮ繝ｻ・ｴ郢晢ｽｻ繝ｻ・ｧ鬯ｯ・ｮ繝ｻ・ｮ髯ｷ闌ｨ・ｽ・ｷ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ" if is_home_game else "鬯ｯ・ｯ繝ｻ・ｩ髯具ｽｹ郢晢ｽｻ繝ｻ・ｽ繝ｻ・｣郢晢ｽｻ繝ｻ・ｰ鬯ｮ・ｯ雋・ｽｯ繝ｻ・｣隲帑ｺ･蜷磯Δ譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｲ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻ",
 			travel_cost
 		]
 		recent_finance_log.append(line)
@@ -975,14 +1131,14 @@ func _build_flavor_event(rng: RandomNumberGenerator) -> Dictionary:
 		player_name = picked_player.full_name
 
 	var event_defs: Array[Dictionary] = [
-		{"category": "朗報", "text": "%s が商店街イベントで大人気。打線の雰囲気が良くなった。", "attack": 1.2, "pitch": 0.0, "fan_delta": 3, "budget_delta": 1200},
-		{"category": "朗報", "text": "%s が自主練で鋭い振りを見せ、周囲の期待が高まっている。", "attack": 1.0, "pitch": 0.2, "fan_delta": 1, "budget_delta": 0},
-		{"category": "街の噂", "text": "%s の選手たちが地元の子どもたちと交流し、球場の空気が明るい。", "attack": 0.6, "pitch": 0.4, "fan_delta": 2, "budget_delta": 400},
-		{"category": "街の噂", "text": "%s の差し入れ話でベンチが盛り上がっている。", "attack": 0.4, "pitch": 0.4, "fan_delta": 1, "budget_delta": -300},
-		{"category": "不穏", "text": "%s 周辺で用具トラブルの噂。試合前の空気が少し重い。", "attack": -0.5, "pitch": -0.3, "fan_delta": -1, "budget_delta": -500},
-		{"category": "不穏", "text": "%s でベンチの空気が張りつめている。立ち上がりに注意。", "attack": -0.3, "pitch": -0.5, "fan_delta": -1, "budget_delta": 0},
-		{"category": "朗報", "text": "%s の若手が絶好調。今日は思い切った打撃が光りそうだ。", "attack": 1.4, "pitch": 0.0, "fan_delta": 1, "budget_delta": 0},
-		{"category": "朗報", "text": "%s の投手陣が入念に調整。守りから流れを作れそうだ。", "attack": 0.0, "pitch": 1.3, "fan_delta": 1, "budget_delta": 0}
+		{"category": "朗報", "text": "%s が商店街イベントで大人気。遠征先でも声援が増えている。", "attack": 1.2, "pitch": 0.0, "fan_delta": 3, "budget_delta": 1200},
+		{"category": "朗報", "text": "%s が地元球場で子ども向け教室を開き、球団の空気が良くなっている。", "attack": 1.0, "pitch": 0.2, "fan_delta": 1, "budget_delta": 0},
+		{"category": "街の噂", "text": "%s の選手たちが河川敷で自主練を続けていると話題。現場の熱気が高まる。", "attack": 0.6, "pitch": 0.4, "fan_delta": 2, "budget_delta": 400},
+		{"category": "街の噂", "text": "%s の差し入れ話でベンチの雰囲気が少し上向いている。", "attack": 0.4, "pitch": 0.4, "fan_delta": 1, "budget_delta": -300},
+		{"category": "不穏", "text": "%s 周辺で用具トラブルの噂。試合前の空気がやや重い。", "attack": -0.5, "pitch": -0.3, "fan_delta": -1, "budget_delta": -500},
+		{"category": "不穏", "text": "%s のベンチで説教が長引いている。立ち上がりに不安。", "attack": -0.3, "pitch": -0.5, "fan_delta": -1, "budget_delta": 0},
+		{"category": "朗報", "text": "%s の闘志が注目され、今日は思い切った打席が増えそうだ。", "attack": 1.4, "pitch": 0.0, "fan_delta": 1, "budget_delta": 0},
+		{"category": "朗報", "text": "%s の投球練習が好調。周りから期待の声が集まっている。", "attack": 0.0, "pitch": 1.3, "fan_delta": 1, "budget_delta": 0}
 	]
 	var event_def: Dictionary = event_defs[rng.randi_range(0, event_defs.size() - 1)]
 	return {
@@ -1123,7 +1279,7 @@ func get_season_phase() -> String:
 func _run_offseason(previous_year: int, next_year: int) -> Array[String]:
 	var lines: Array[String] = []
 	lines.append("%d年シーズンのオフ処理を開始しました。" % previous_year)
-	lines.append("%d年シーズンへ向けて球団と選手を調整します。" % next_year)
+	lines.append("%d年シーズンに向けて状態と選手を調整します。" % next_year)
 
 	var sorted_teams: Array = get_teams_sorted_by_win_pct()
 	var champion_id: String = ""
@@ -1168,7 +1324,7 @@ func _run_offseason(previous_year: int, next_year: int) -> Array[String]:
 	if champion_id != "":
 		var champion_team: TeamData = get_team(champion_id)
 		if champion_team != null:
-			lines.append("前年の優勝球団: %s" % champion_team.name)
+			lines.append("前年度の優勝: %s" % champion_team.name)
 
 	var controlled_team: TeamData = get_controlled_team()
 	if controlled_team != null:
@@ -1240,6 +1396,31 @@ func _apply_salary_review(player: PlayerData) -> void:
 	player.salary = clampi(eased_salary, 180, 12000)
 	player.desired_salary = int(round(float(player.salary) * (1.00 + float(player.fa_interest) / 220.0)))
 
+func _rebalance_team_payrolls() -> Array[String]:
+	var lines: Array[String] = []
+	for team_id in all_team_ids():
+		var team: TeamData = get_team(team_id)
+		if team == null:
+			continue
+
+		var total_salary: int = _calc_team_total_salary(team)
+		var soft_cap: int = maxi(3000, int(team.budget) + 2500)
+		if total_salary <= soft_cap:
+			continue
+
+		var scale: float = float(soft_cap) / float(maxi(total_salary, 1))
+		for player_id in team.player_ids:
+			var player: PlayerData = get_player(str(player_id))
+			if player == null:
+				continue
+			player.salary = clampi(int(round(float(player.salary) * scale)), 180, 12000)
+			player.desired_salary = int(round(float(player.salary) * (1.00 + float(player.fa_interest) / 220.0)))
+
+		var adjusted_total: int = _calc_team_total_salary(team)
+		if controlled_team_id != "" and str(team.id) == str(controlled_team_id):
+			lines.append("担当球団年俸調整: %d -> %d" % [total_salary, adjusted_total])
+	return lines
+
 func _calc_team_total_salary(team: TeamData) -> int:
 	if team == null:
 		return 0
@@ -1278,15 +1459,54 @@ func get_facility_upgrade_cost(team_id: String, facility_key: String) -> int:
 	var current_level: int = int(team.facilities.get(facility_key, 1))
 	return 4000 + current_level * 2500
 
+func _roll_sponsor_name(team: TeamData) -> String:
+	var team_name: String = team.name if team != null else "球団"
+	var base_names: Array[String] = [
+		"街角グループ",
+		"地元建設",
+		"青空フーズ",
+		"港町メディカル",
+		"ナイター商店街",
+		"ストリート工業",
+		"商店会連合",
+		"未来モータース"
+	]
+	var picked: String = base_names[abs(hash(team_name + str(team.sponsor_tier))) % base_names.size()]
+	return "%s %s" % [team_name.substr(0, mini(2, team_name.length())), picked]
+
+func _get_facility_label(facility_key: String) -> String:
+	match facility_key:
+		"training":
+			return "練習施設"
+		"medical":
+			return "医療施設"
+		"scouting":
+			return "スカウト施設"
+		"marketing":
+			return "営業施設"
+		_:
+			return facility_key
+
+func _get_staff_label(staff_key: String) -> String:
+	match staff_key:
+		"coaches":
+			return "コーチ"
+		"scouts":
+			return "スカウト"
+		"trainers":
+			return "トレーナー"
+		_:
+			return staff_key
+
 func upgrade_team_facility(team_id: String, facility_key: String) -> Dictionary:
 	var team: TeamData = get_team(team_id)
 	if team == null:
 		return {"ok": false, "message": "球団データが見つかりません。"}
 	if not team.facilities.has(facility_key):
-		return {"ok": false, "message": "不明な施設です。"}
+		return {"ok": false, "message": "対象外の施設です。"}
 	var current_level: int = int(team.facilities.get(facility_key, 1))
 	if current_level >= 5:
-		return {"ok": false, "message": "これ以上強化できません。"}
+		return {"ok": false, "message": "これ以上は強化できません。"}
 	var cost: int = get_facility_upgrade_cost(team_id, facility_key)
 	if int(team.budget) < cost:
 		return {"ok": false, "message": "予算が不足しています。必要額: %d" % cost}
@@ -1294,7 +1514,7 @@ func upgrade_team_facility(team_id: String, facility_key: String) -> Dictionary:
 	team.facilities[facility_key] = current_level + 1
 	return {
 		"ok": true,
-		"message": "%s をLv.%dに強化しました。予算 -%d" % [_get_facility_label(facility_key), current_level + 1, cost]
+		"message": "%sをLv.%dに強化しました。予算 -%d" % [_get_facility_label(facility_key), current_level + 1, cost]
 	}
 
 func change_team_staff(team_id: String, staff_key: String, delta: int) -> Dictionary:
@@ -1302,22 +1522,22 @@ func change_team_staff(team_id: String, staff_key: String, delta: int) -> Dictio
 	if team == null:
 		return {"ok": false, "message": "球団データが見つかりません。"}
 	if not team.staff.has(staff_key):
-		return {"ok": false, "message": "不明なスタッフ種別です。"}
+		return {"ok": false, "message": "対象外のスタッフ種別です。"}
 	if delta == 0:
 		return {"ok": false, "message": "変更人数が0です。"}
 	var current_count: int = int(team.staff.get(staff_key, 0))
 	if delta < 0:
 		var min_count: int = 1
 		if current_count <= min_count:
-			return {"ok": false, "message": "%s はこれ以上減らせません。" % _get_staff_label(staff_key)}
+			return {"ok": false, "message": "%sはこれ以上減らせません。" % _get_staff_label(staff_key)}
 		team.staff[staff_key] = current_count - 1
-		return {"ok": true, "message": "%s を1人減らしました。" % _get_staff_label(staff_key)}
+		return {"ok": true, "message": "%sを1人減らしました。" % _get_staff_label(staff_key)}
 	var hire_cost: int = 1800 + current_count * 1200
 	if int(team.budget) < hire_cost:
 		return {"ok": false, "message": "予算が不足しています。必要額: %d" % hire_cost}
 	team.budget = int(team.budget) - hire_cost
 	team.staff[staff_key] = current_count + 1
-	return {"ok": true, "message": "%s を1人雇用しました。予算 -%d" % [_get_staff_label(staff_key), hire_cost]}
+	return {"ok": true, "message": "%sを1人増やしました。予算 -%d" % [_get_staff_label(staff_key), hire_cost]}
 
 func pitch_team_sponsor(team_id: String) -> Dictionary:
 	var team: TeamData = get_team(team_id)
@@ -1378,9 +1598,8 @@ func renew_controlled_player_contract(player_id: String, years: int = 2) -> Dict
 	player.fa_interest = clampi(int(player.fa_interest) - 12, 0, 100)
 	return {
 		"ok": true,
-		"message": "%s と%d年契約を結びました。予算 -%d / 年俸 %d" % [player.full_name, years, signing_bonus, int(player.salary)]
+		"message": "%sと%d年契約を結びました。予算 -%d / 年俸 %d" % [player.full_name, years, signing_bonus, int(player.salary)]
 	}
-
 
 func get_fa_candidate_list() -> Array[Dictionary]:
 	var candidates: Array[Dictionary] = []
@@ -1422,69 +1641,6 @@ func get_fa_candidate_list() -> Array[Dictionary]:
 	)
 	return candidates
 
-func _roll_sponsor_name(team: TeamData) -> String:
-	var team_name: String = team.name if team != null else "球団"
-	var base_names: Array[String] = [
-		"商店街グループ",
-		"地元建設",
-		"河川敷フーズ",
-		"街角メディカル",
-		"ナイター工業",
-		"ストリート物流",
-		"下町不動産",
-		"北関東モータース"
-	]
-	var picked: String = base_names[abs(hash(team_name + str(team.sponsor_tier))) % base_names.size()]
-	return "%s %s" % [team_name.substr(0, mini(2, team_name.length())), picked]
-
-func _get_facility_label(facility_key: String) -> String:
-	match facility_key:
-		"training":
-			return "練習施設"
-		"medical":
-			return "医療施設"
-		"scouting":
-			return "スカウト施設"
-		"marketing":
-			return "営業施設"
-		_:
-			return facility_key
-
-func _get_staff_label(staff_key: String) -> String:
-	match staff_key:
-		"coaches":
-			return "コーチ"
-		"scouts":
-			return "スカウト"
-		"trainers":
-			return "トレーナー"
-		_:
-			return staff_key
-
-func _rebalance_team_payrolls() -> Array[String]:
-	var lines: Array[String] = []
-	for team_id in all_team_ids():
-		var team: TeamData = get_team(team_id)
-		if team == null:
-			continue
-		var payroll_total: int = _calc_team_total_salary(team)
-		var salary_target: int = maxi(2500, int(round(float(team.budget) * 1.25)))
-		if payroll_total <= salary_target:
-			continue
-
-		var ratio: float = float(salary_target) / float(maxi(payroll_total, 1))
-		for player_id in team.player_ids:
-			var player: PlayerData = get_player(str(player_id))
-			if player == null:
-				continue
-			var adjusted_salary: int = int(round(float(int(player.salary)) * ratio))
-			player.salary = clampi(adjusted_salary, 180, 12000)
-
-		var adjusted_total: int = _calc_team_total_salary(team)
-		if str(team.id) == controlled_team_id:
-			lines.append("担当球団年俸調整: %d -> %d" % [payroll_total, adjusted_total])
-
-	return lines
 
 func _apply_player_offseason(player: PlayerData) -> void:
 	var team: TeamData = _find_player_team(str(player.id))
