@@ -227,7 +227,12 @@ func _refresh_selected_team_detail() -> void:
 	var team_name: String = team.name
 	if LeagueState.controlled_team_id == selected_team_id:
 		team_name += " (担当球団)"
-	selected_team_detail_label.text = "チーム名: %s\n戦績: %s勝 %s敗 %s分\nファン人気: %d\n予算: %d\n方針: %s\n打撃力: %.2f\n投手力: %.2f\n総合力: %.2f" % [team_name, str(team.standings["wins"]), str(team.standings["losses"]), str(team.standings["draws"]), int(team.fan_support), int(team.budget), _get_strategy_label(str(team.strategy)), attack, pitch_value, total]
+	var roster_rule_summary: Dictionary = LeagueState.get_team_roster_rule_summary(selected_team_id)
+	var roster_warning_lines: Array[String] = roster_rule_summary.get("warnings", [])
+	var roster_warning_text: String = "警告なし"
+	if not roster_warning_lines.is_empty():
+		roster_warning_text = "\n".join(roster_warning_lines)
+	selected_team_detail_label.text = "チーム名: %s\n戦績: %s勝 %s敗 %s分\nファン人気: %d\n予算: %d\n方針: %s\n打撃力: %.2f\n投手力: %.2f\n総合力: %.2f\n\nロスター規定\n支配下: %d / %d\n一軍相当: %d / %d\n外国人保有: %d\n一軍外国人: %d / %d\n警告: %s" % [team_name, str(team.standings["wins"]), str(team.standings["losses"]), str(team.standings["draws"]), int(team.fan_support), int(team.budget), _get_strategy_label(str(team.strategy)), attack, pitch_value, total, int(roster_rule_summary.get("registered", 0)), int(roster_rule_summary.get("registered_max", 0)), int(roster_rule_summary.get("active", 0)), int(roster_rule_summary.get("active_target", 0)), int(roster_rule_summary.get("foreign_signed", 0)), int(roster_rule_summary.get("foreign_active", 0)), int(roster_rule_summary.get("foreign_active_max", 0)), roster_warning_text]
 
 func _refresh_selected_team_lineups() -> void:
 	for child in lineup_vs_r_vbox.get_children():

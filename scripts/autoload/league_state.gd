@@ -3,6 +3,9 @@
 const TEAM_DATA_SCRIPT = preload("res://scripts/data/team_data.gd")
 const PLAYER_DATA_SCRIPT = preload("res://scripts/data/player_data.gd")
 const GAME_DATA_SCRIPT = preload("res://scripts/data/game_data.gd")
+const TEAM_BLUEPRINTS_SCRIPT = preload("res://scripts/data/team_blueprints.gd")
+const OPENING_DATA_SCRIPT = preload("res://scripts/data/npb_inspired_opening_data.gd")
+const FIXED_ROSTER_BUILDER_SCRIPT = preload("res://scripts/autoload/fixed_roster_builder.gd")
 const START_SEASON_YEAR := 2026
 const CALENDAR_START_MONTH := 1
 const CALENDAR_START_DAY := 1
@@ -70,14 +73,7 @@ var prepared_day: int = 0
 var finalized_finance_day: int = 0
 var pending_home_message: String = ""
 
-var team_master: Array[Dictionary] = [
-	{"id": "TKY", "name": "東京フェニックス"},
-	{"id": "OSK", "name": "大阪ブレイバーズ"},
-	{"id": "NGY", "name": "名古屋スティング"},
-	{"id": "SPP", "name": "札幌ノーザンウルブズ"},
-	{"id": "FKO", "name": "福岡サンダーズ"},
-	{"id": "SDI", "name": "仙台ストーム"}
-]
+var team_master: Array[Dictionary] = OPENING_DATA_SCRIPT.get_team_blueprints()
 
 func reset() -> void:
 	season_year = START_SEASON_YEAR
@@ -103,9 +99,11 @@ func reset() -> void:
 
 func new_game() -> void:
 	reset()
+	team_master = OPENING_DATA_SCRIPT.get_team_blueprints()
+	var roster_builder = FIXED_ROSTER_BUILDER_SCRIPT.new()
 
 	for team_info in team_master:
-		var generated: Dictionary = PlayerFactory.generate_team_roster(str(team_info["id"]), str(team_info["name"]))
+		var generated: Dictionary = roster_builder.build_opening_team(team_info)
 		var team = generated["team"]
 		var roster: Array = generated["players"]
 
@@ -199,6 +197,115 @@ func get_controlled_team() -> TeamData:
 	if controlled_team_id == "":
 		return null
 	return get_team(controlled_team_id)
+
+func get_roster_ruleset() -> Dictionary:
+	return TEAM_BLUEPRINTS_SCRIPT.get_ruleset()
+
+func get_team_registered_player_count(team_id: String) -> int:
+	var team: TeamData = get_team(team_id)
+	if team == null:
+		return 0
+	return team.player_ids.size()
+
+func get_team_foreign_player_ids(team_id: String) -> Array[String]:
+	var result: Array[String] = []
+	var team: TeamData = get_team(team_id)
+	if team == null:
+		return result
+	for player_id in team.player_ids:
+		var player: PlayerData = get_player(str(player_id))
+		if player != null and bool(player.is_foreign):
+			result.append(str(player.id))
+	return result
+
+func get_team_active_player_ids(team_id: String) -> Array[String]:
+	var team: TeamData = get_team(team_id)
+	var active_ids: Array[String] = []
+	if team == null:
+		return active_ids
+
+	var seen: Dictionary = {}
+	for player_id in team.lineup_vs_r:
+		_append_unique_player_id(active_ids, seen, str(player_id))
+	for player_id in team.lineup_vs_l:
+		_append_unique_player_id(active_ids, seen, str(player_id))
+	for player_id in team.bench_ids:
+		_append_unique_player_id(active_ids, seen, str(player_id))
+	for player_id in team.rotation_ids:
+		_append_unique_player_id(active_ids, seen, str(player_id))
+
+	_append_unique_player_id(active_ids, seen, str(team.bullpen.get("closer", "")))
+	_append_unique_player_id(active_ids, seen, str(team.bullpen.get("long", "")))
+	for player_id in team.bullpen.get("setup", []):
+		_append_unique_player_id(active_ids, seen, str(player_id))
+	for player_id in team.bullpen.get("middle", []):
+		_append_unique_player_id(active_ids, seen, str(player_id))
+
+	return active_ids
+
+func get_team_roster_rule_summary(team_id: String) -> Dictionary:
+	var rules: Dictionary = get_roster_ruleset()
+	var team: TeamData = get_team(team_id)
+	if team == null:
+		return {
+			"ok": false,
+			"registered": 0,
+			"active": 0,
+			"foreign_signed": 0,
+			"foreign_active": 0,
+			"foreign_active_pitchers": 0,
+			"foreign_active_fielders": 0,
+			"warnings": ["チームデータが見つかりません。"]
+		}
+
+	var registered_count: int = get_team_registered_player_count(team_id)
+	var active_ids: Array[String] = get_team_active_player_ids(team_id)
+	var foreign_signed_ids: Array[String] = get_team_foreign_player_ids(team_id)
+	var foreign_active: int = 0
+	var foreign_active_pitchers: int = 0
+	var foreign_active_fielders: int = 0
+	for player_id in active_ids:
+		var player: PlayerData = get_player(str(player_id))
+		if player == null or not bool(player.is_foreign):
+			continue
+		foreign_active += 1
+		if player.is_pitcher():
+			foreign_active_pitchers += 1
+		else:
+			foreign_active_fielders += 1
+
+	var warnings: Array[String] = []
+	if registered_count > int(rules.get("registered_roster_max", 70)):
+		warnings.append("支配下人数が上限を超えています。")
+	if foreign_active > int(rules.get("foreign_active_max", 4)):
+		warnings.append("一軍外国人枠を超えています。")
+	if foreign_active_pitchers > int(rules.get("foreign_pitcher_active_max", 3)):
+		warnings.append("一軍外国人投手枠を超えています。")
+	if foreign_active_fielders > int(rules.get("foreign_fielder_active_max", 3)):
+		warnings.append("一軍外国人野手枠を超えています。")
+
+	return {
+		"ok": warnings.is_empty(),
+		"registered": registered_count,
+		"registered_target": int(rules.get("registered_roster_target", 68)),
+		"registered_max": int(rules.get("registered_roster_max", 70)),
+		"active": active_ids.size(),
+		"active_target": int(rules.get("active_roster_target", 29)),
+		"foreign_signed": foreign_signed_ids.size(),
+		"foreign_active": foreign_active,
+		"foreign_active_max": int(rules.get("foreign_active_max", 4)),
+		"foreign_active_pitchers": foreign_active_pitchers,
+		"foreign_pitcher_active_max": int(rules.get("foreign_pitcher_active_max", 3)),
+		"foreign_active_fielders": foreign_active_fielders,
+		"foreign_fielder_active_max": int(rules.get("foreign_fielder_active_max", 3)),
+		"warnings": warnings
+	}
+
+func _append_unique_player_id(target: Array[String], seen: Dictionary, player_id: String) -> void:
+	if player_id == "" or seen.has(player_id):
+		return
+	seen[player_id] = true
+	target.append(player_id)
 
 func set_pending_home_message(message: String) -> void:
 	pending_home_message = message

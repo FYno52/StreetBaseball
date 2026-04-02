@@ -30,8 +30,8 @@ func _ready() -> void:
 	filter_all_button.text = "全員"
 	filter_fielders_button.text = "野手"
 	filter_pitchers_button.text = "投手"
-	filter_starters_button.text = "スタメン"
-	filter_bench_button.text = "ベンチ"
+	filter_starters_button.text = "一軍"
+	filter_bench_button.text = "二軍・控え"
 
 	back_button.pressed.connect(_on_back_button_pressed)
 	sort_overall_button.pressed.connect(_on_sort_button_pressed.bind("overall"))
@@ -41,8 +41,8 @@ func _ready() -> void:
 	filter_all_button.pressed.connect(_on_filter_button_pressed.bind("all"))
 	filter_fielders_button.pressed.connect(_on_filter_button_pressed.bind("fielders"))
 	filter_pitchers_button.pressed.connect(_on_filter_button_pressed.bind("pitchers"))
-	filter_starters_button.pressed.connect(_on_filter_button_pressed.bind("starters"))
-	filter_bench_button.pressed.connect(_on_filter_button_pressed.bind("bench"))
+	filter_starters_button.pressed.connect(_on_filter_button_pressed.bind("active"))
+	filter_bench_button.pressed.connect(_on_filter_button_pressed.bind("reserve"))
 
 	_refresh_view()
 
@@ -55,11 +55,17 @@ func _refresh_view() -> void:
 
 	var controlled_team: TeamData = LeagueState.get_controlled_team()
 	if controlled_team == null:
-		info_label.text = "担当球団が未設定のため、選手一覧を表示できません。"
-		_add_message_label("まず担当球団を選んでください。")
+		info_label.text = "担当球団が未設定です。"
+		_add_message_label("ホームから担当球団を選んでください。")
 		return
 
-	info_label.text = "%s の所属選手を表示しています。選手を押すと詳細画面へ進みます。" % controlled_team.name
+	var roster_summary: Dictionary = LeagueState.get_team_roster_rule_summary(str(controlled_team.id))
+	info_label.text = "%sの選手一覧  支配下:%d  一軍相当:%d  外国人:%d" % [
+		controlled_team.name,
+		int(roster_summary.get("registered", 0)),
+		int(roster_summary.get("active", 0)),
+		int(roster_summary.get("foreign_signed", 0))
+	]
 
 	var grouped_players: Dictionary = _build_filtered_groups(controlled_team)
 	_add_group("野手", grouped_players.get("fielders", []), controlled_team)
@@ -100,28 +106,12 @@ func _matches_filter(player: PlayerData, team: TeamData) -> bool:
 			return not player.is_pitcher()
 		"pitchers":
 			return player.is_pitcher()
-		"starters":
-			if player.is_pitcher():
-				return team.rotation_ids.has(str(player.id))
-			return team.lineup_vs_r.has(str(player.id)) or team.lineup_vs_l.has(str(player.id))
-		"bench":
-			if player.is_pitcher():
-				return not team.rotation_ids.has(str(player.id)) and not _is_bullpen_player(player, team)
-			return team.bench_ids.has(str(player.id))
+		"active":
+			return str(player.roster_status) == "active"
+		"reserve":
+			return str(player.roster_status) == "farm" or str(player.roster_status) == "development"
 		_:
 			return true
-
-func _is_bullpen_player(player: PlayerData, team: TeamData) -> bool:
-	var player_id: String = str(player.id)
-	if str(team.bullpen.get("closer", "")) == player_id:
-		return true
-	if str(team.bullpen.get("long", "")) == player_id:
-		return true
-	if team.bullpen.get("setup", []).has(player_id):
-		return true
-	if team.bullpen.get("middle", []).has(player_id):
-		return true
-	return false
 
 func _add_group(title: String, players_in_group: Array, team: TeamData) -> void:
 	var header_label: Label = Label.new()
@@ -131,7 +121,7 @@ func _add_group(title: String, players_in_group: Array, team: TeamData) -> void:
 	roster_vbox.add_child(header_label)
 
 	if players_in_group.is_empty():
-		_add_message_label("該当選手はいません。")
+		_add_message_label("該当する選手はいません。")
 		return
 
 	var sorted_players: Array = players_in_group.duplicate()
@@ -167,13 +157,15 @@ func _sort_players(a: Variant, b: Variant) -> bool:
 			return int(player_a.overall) > int(player_b.overall)
 
 func _build_player_row_text(player: PlayerData, team: TeamData) -> String:
-	return "%s  %s  年齢:%d  年俸:%d  総合:%d  %s" % [
+	return "%s  %s  年齢:%d  年俸:%d  総合:%d  %s  %s%s" % [
 		player.full_name,
 		_get_player_role_label(player),
 		int(player.age),
 		int(player.salary),
 		int(player.overall),
-		_get_player_assignment_label(player, team)
+		_get_player_assignment_label(player, team),
+		_get_roster_status_label(player),
+		" / 外国人" if bool(player.is_foreign) else ""
 	]
 
 func _get_player_role_label(player: PlayerData) -> String:
@@ -191,7 +183,7 @@ func _get_player_role_label(player: PlayerData) -> String:
 
 func _get_player_assignment_label(player: PlayerData, team: TeamData) -> String:
 	if player == null or team == null:
-		return "在籍"
+		return "所属不明"
 
 	var player_id: String = str(player.id)
 	if team.rotation_ids.has(player_id):
@@ -206,14 +198,23 @@ func _get_player_assignment_label(player: PlayerData, team: TeamData) -> String:
 	if str(team.bullpen.get("long", "")) == player_id:
 		return "ロング"
 	if team.lineup_vs_r.has(player_id) and team.lineup_vs_l.has(player_id):
-		return "左右スタメン"
+		return "一軍スタメン"
 	if team.lineup_vs_r.has(player_id):
 		return "対右スタメン"
 	if team.lineup_vs_l.has(player_id):
 		return "対左スタメン"
 	if team.bench_ids.has(player_id):
-		return "ベンチ"
-	return "在籍"
+		return "一軍ベンチ"
+	return "二軍"
+
+func _get_roster_status_label(player: PlayerData) -> String:
+	match str(player.roster_status):
+		"active":
+			return "一軍"
+		"development":
+			return "育成"
+		_:
+			return "二軍"
 
 func _update_sort_buttons() -> void:
 	sort_overall_button.toggle_mode = true
@@ -234,8 +235,8 @@ func _update_filter_buttons() -> void:
 	filter_all_button.button_pressed = current_filter_key == "all"
 	filter_fielders_button.button_pressed = current_filter_key == "fielders"
 	filter_pitchers_button.button_pressed = current_filter_key == "pitchers"
-	filter_starters_button.button_pressed = current_filter_key == "starters"
-	filter_bench_button.button_pressed = current_filter_key == "bench"
+	filter_starters_button.button_pressed = current_filter_key == "active"
+	filter_bench_button.button_pressed = current_filter_key == "reserve"
 
 func _on_sort_button_pressed(sort_key: String) -> void:
 	current_sort_key = sort_key

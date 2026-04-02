@@ -7,6 +7,9 @@ var full_name: String = ""
 var age: int = 18
 var bats: String = "R"
 var throws: String = "R"
+var is_foreign: bool = false
+var registration_type: String = "registered"
+var roster_status: String = "farm"
 
 # fielder / starter / reliever / closer
 var role: String = "fielder"
@@ -121,6 +124,9 @@ func to_dict() -> Dictionary:
 		"age": age,
 		"bats": bats,
 		"throws": throws,
+		"is_foreign": is_foreign,
+		"registration_type": registration_type,
+		"roster_status": roster_status,
 		"role": role,
 		"primary_position": primary_position,
 		"secondary_positions": secondary_positions.duplicate(),
@@ -151,6 +157,9 @@ static func from_dict(d: Dictionary):
 	p.age = int(d.get("age", 18))
 	p.bats = str(d.get("bats", "R"))
 	p.throws = str(d.get("throws", "R"))
+	p.is_foreign = bool(d.get("is_foreign", false))
+	p.registration_type = str(d.get("registration_type", "registered"))
+	p.roster_status = str(d.get("roster_status", "farm"))
 	p.role = str(d.get("role", "fielder"))
 	p.primary_position = str(d.get("primary_position", "CF"))
 	p.overall = int(d.get("overall", 50))

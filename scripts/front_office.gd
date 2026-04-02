@@ -63,6 +63,8 @@ func _refresh_view() -> void:
 	var expiring_count: int = int(contract_summary.get("expiring_count", 0))
 	var fa_watch: Array = contract_summary.get("fa_watch_players", [])
 	var total_salary: int = int(snapshot.get("total_salary", 0))
+	var roster_rule_summary: Dictionary = LeagueState.get_team_roster_rule_summary(str(team.id))
+	var roster_warning_lines: Array[String] = roster_rule_summary.get("warnings", [])
 	var calendar_summary: String = LeagueState.get_calendar_summary_text()
 	var contract_now: bool = LeagueState.is_contract_period()
 	var fa_now: bool = LeagueState.is_fa_period()
@@ -71,7 +73,7 @@ func _refresh_view() -> void:
 	var draft_now: bool = LeagueState.is_draft_prep_period() or LeagueState.is_draft_day()
 	var upcoming_events: Array[Dictionary] = LeagueState.get_upcoming_calendar_events(3)
 
-	summary_detail_label.text = "%s\n予算: %d\n人気: %d\n年俸総額: %d\n日次スポンサー収入: +%d\n日次スタッフ費: -%d\n契約切れ間近: %d人\nFA注意: %d人\n\n今日の年間イベント\n%s" % [
+	summary_detail_label.text = "%s\n予算: %d\n人気: %d\n年俸総額: %d\n日次スポンサー収入: +%d\n日次スタッフ費: -%d\n契約切れ間近: %d人\nFA注意: %d人\n\nロスター規定\n支配下: %d / %d\n一軍相当: %d / %d\n外国人保有: %d\n一軍外国人: %d / %d (投手 %d / %d, 野手 %d / %d)\n%s\n\n今日の年間イベント\n%s" % [
 		team.name,
 		int(snapshot.get("budget", 0)),
 		int(snapshot.get("fan_support", 0)),
@@ -80,6 +82,18 @@ func _refresh_view() -> void:
 		int(snapshot.get("daily_staff_cost", 0)),
 		expiring_count,
 		fa_watch.size(),
+		int(roster_rule_summary.get("registered", 0)),
+		int(roster_rule_summary.get("registered_max", 70)),
+		int(roster_rule_summary.get("active", 0)),
+		int(roster_rule_summary.get("active_target", 29)),
+		int(roster_rule_summary.get("foreign_signed", 0)),
+		int(roster_rule_summary.get("foreign_active", 0)),
+		int(roster_rule_summary.get("foreign_active_max", 4)),
+		int(roster_rule_summary.get("foreign_active_pitchers", 0)),
+		int(roster_rule_summary.get("foreign_pitcher_active_max", 3)),
+		int(roster_rule_summary.get("foreign_active_fielders", 0)),
+		int(roster_rule_summary.get("foreign_fielder_active_max", 3)),
+		"警告なし" if roster_warning_lines.is_empty() else "警告: " + " / ".join(roster_warning_lines),
 		calendar_summary
 	]
 

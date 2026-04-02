@@ -25,22 +25,27 @@ func _refresh_view() -> void:
 	var player: PlayerData = LeagueState.get_selected_player()
 	if player == null:
 		info_label.text = "選手が選ばれていません。"
-		basic_detail_label.text = "選手一覧から選択してください。"
+		basic_detail_label.text = "選手一覧から選んでください。"
 		ratings_detail_label.text = "-"
 		stats_detail_label.text = "-"
 		return
 
 	var team: TeamData = _find_player_team(str(player.id))
-	info_label.text = "%s の詳細データです。" % player.full_name
+	info_label.text = "%sの詳細データです。" % player.full_name
 
 	var basic_lines: Array[String] = []
-	basic_lines.append("所属: %s" % (team.name if team != null else "不明"))
+	basic_lines.append("所属: %s" % (team.name if team != null else "所属不明"))
 	basic_lines.append("役割: %s" % _get_player_role_label(player))
 	basic_lines.append("起用状況: %s" % _get_player_assignment_label(player, team))
+	basic_lines.append("登録区分: %s" % _get_registration_type_label(player))
+	basic_lines.append("在籍状態: %s" % _get_roster_status_label(player))
+	basic_lines.append("外国人: %s" % ("はい" if bool(player.is_foreign) else "いいえ"))
 	basic_lines.append("年齢: %d" % int(player.age))
 	basic_lines.append("年俸: %d" % int(player.salary))
-	basic_lines.append("在籍年数: %d年" % int(player.years_pro))
-	basic_lines.append("利き腕/打席: %s投 / %s打" % [str(player.throws), str(player.bats)])
+	basic_lines.append("契約残り: %d年" % int(player.contract_years_left))
+	basic_lines.append("希望年俸: %d" % int(player.desired_salary))
+	basic_lines.append("FA志向: %d" % int(player.fa_interest))
+	basic_lines.append("投/打: %s投 / %s打" % [str(player.throws), str(player.bats)])
 	basic_lines.append("総合: %d  潜在: %d" % [int(player.overall), int(player.potential)])
 	basic_lines.append("成長タイプ: %s" % _get_development_label(str(player.development_type)))
 	basic_lines.append("特性: %s" % _build_traits_text(player))
@@ -53,10 +58,10 @@ func _refresh_view() -> void:
 func _build_ratings_text(player: PlayerData) -> String:
 	if player.is_pitcher():
 		return "\n".join([
-			"球速: %d" % int(player.ratings["velocity"]),
+			"球威: %d" % int(player.ratings["velocity"]),
 			"制球: %d" % int(player.ratings["control"]),
 			"スタミナ: %d" % int(player.ratings["stamina"]),
-			"変化球: %d" % int(player.ratings["break"]),
+			"変化: %d" % int(player.ratings["break"]),
 			"奪三振: %d" % int(player.ratings["k_rate"]),
 			"対左: %d" % int(player.ratings["vs_left"]),
 			"度胸: %d" % int(player.ratings["composure"])
@@ -126,12 +131,12 @@ func _get_player_role_label(player: PlayerData) -> String:
 
 func _get_player_assignment_label(player: PlayerData, team: TeamData) -> String:
 	if player == null or team == null:
-		return "不明"
+		return "所属不明"
 
 	var player_id: String = str(player.id)
 	if team.rotation_ids.has(player_id):
 		var rotation_index: int = team.rotation_ids.find(player_id)
-		return "先発ローテ %d番" % [rotation_index + 1]
+		return "先発ローテ%d番" % [rotation_index + 1]
 	if str(team.bullpen.get("closer", "")) == player_id:
 		return "抑え"
 	if team.bullpen.get("setup", []).has(player_id):
@@ -141,14 +146,26 @@ func _get_player_assignment_label(player: PlayerData, team: TeamData) -> String:
 	if str(team.bullpen.get("long", "")) == player_id:
 		return "ロング"
 	if team.lineup_vs_r.has(player_id) and team.lineup_vs_l.has(player_id):
-		return "左右スタメン"
+		return "一軍スタメン"
 	if team.lineup_vs_r.has(player_id):
 		return "対右スタメン"
 	if team.lineup_vs_l.has(player_id):
 		return "対左スタメン"
 	if team.bench_ids.has(player_id):
-		return "ベンチ"
-	return "在籍"
+		return "一軍ベンチ"
+	return "二軍"
+
+func _get_registration_type_label(player: PlayerData) -> String:
+	return "育成契約" if str(player.registration_type) == "development" else "支配下"
+
+func _get_roster_status_label(player: PlayerData) -> String:
+	match str(player.roster_status):
+		"active":
+			return "一軍"
+		"development":
+			return "育成"
+		_:
+			return "二軍"
 
 func _get_development_label(development_type: String) -> String:
 	match development_type:
