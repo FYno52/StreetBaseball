@@ -45,6 +45,7 @@ const FRONT_OFFICE_SCENE_PATH := "res://scenes/FrontOffice.tscn"
 @onready var note_detail_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/NoteDetailLabel
 
 var auto_progress_active: bool = false
+var milestone_progress_active: bool = false
 
 
 func _ready() -> void:
@@ -379,16 +380,20 @@ func _refresh_progress_buttons() -> void:
 	var phase: String = LeagueState.get_season_phase()
 	var today_game: GameData = _get_today_controlled_team_game()
 	var live_locked: bool = today_game != null and LeagueState.is_active_live_game(str(today_game.id))
-	var can_open_live: bool = today_game != null and not bool(today_game.played) and not live_locked
-	sim_day_button.disabled = auto_progress_active or not has_calendar_days
-	sim_week_button.disabled = auto_progress_active or not has_calendar_days
-	sim_to_next_game_button.disabled = auto_progress_active or phase != "regular"
-	live_game_button.disabled = auto_progress_active or not can_open_live
-	sim_to_season_end_button.disabled = auto_progress_active or not has_calendar_days
-	save_button.disabled = auto_progress_active
-	load_button.disabled = auto_progress_active
+	var can_open_live: bool = phase == "regular" and today_game != null and not bool(today_game.played) and not live_locked
+	var progress_locked: bool = auto_progress_active or milestone_progress_active
+	sim_day_button.disabled = progress_locked or not has_calendar_days
+	sim_week_button.disabled = progress_locked or not has_calendar_days
+	sim_to_next_game_button.disabled = progress_locked or phase != "regular"
+	live_game_button.disabled = progress_locked or not can_open_live
+	sim_to_season_end_button.disabled = progress_locked or not has_calendar_days
+	save_button.disabled = progress_locked
+	load_button.disabled = progress_locked
 	sim_auto_button.text = "オート停止" if auto_progress_active else "オート進行"
 	front_office_button.text = _get_front_office_button_text()
+	var milestone: Dictionary = LeagueState.get_next_calendar_milestone()
+	var button_label: String = str(milestone.get("button_label", "次の節目まで"))
+	sim_to_season_end_button.text = button_label
 
 
 func _simulate_single_day() -> void:
@@ -484,6 +489,10 @@ func _on_sim_to_next_game_button_pressed() -> void:
 func _on_live_game_button_pressed() -> void:
 	if auto_progress_active:
 		return
+	if LeagueState.get_season_phase() != "regular":
+		progress_status_label.text = "ライブ試合はレギュラーシーズン中のみ入れます。"
+		_refresh_view()
+		return
 	var today_game: GameData = _get_today_controlled_team_game()
 	if today_game == null:
 		progress_status_label.text = "今日は担当球団の試合がありません。"
@@ -505,18 +514,26 @@ func _on_live_game_button_pressed() -> void:
 
 
 func _on_sim_to_season_end_button_pressed() -> void:
-	if auto_progress_active:
+	if auto_progress_active or milestone_progress_active:
 		return
-	var phase: String = LeagueState.get_season_phase()
-	var remaining_days: int = 1
-	match phase:
-		"preseason":
-			remaining_days = maxi(1, LeagueState.get_first_game_day() - LeagueState.current_day)
-		"regular":
-			remaining_days = maxi(1, LeagueState.get_final_game_day() - LeagueState.current_day + 1)
-		_:
-			remaining_days = maxi(1, LeagueState.get_last_day() - LeagueState.current_day + 1)
+	var milestone: Dictionary = LeagueState.get_next_calendar_milestone()
+	var milestone_label: String = str(milestone.get("progress_label", str(milestone.get("label", "節目"))))
+	var target_day: int = int(milestone.get("target_day", LeagueState.current_day))
+	var inclusive_target: bool = milestone_label == "年越し"
+	var remaining_days: int = maxi(0, target_day - LeagueState.current_day + (1 if inclusive_target else 0))
+	if remaining_days <= 0:
+		progress_status_label.text = "今日は %s の節目です。" % milestone_label
+		_refresh_progress_buttons()
+		return
+	milestone_progress_active = true
+	_refresh_progress_buttons()
+	progress_status_label.text = "%s まで進行中..." % milestone_label
+	await get_tree().process_frame
+	await get_tree().create_timer(0.25).timeout
 	_simulate_multiple_days(remaining_days)
+	progress_status_label.text = "%s まで到達しました。\n%s" % [milestone_label, progress_status_label.text]
+	milestone_progress_active = false
+	_refresh_progress_buttons()
 
 
 func _on_team_management_button_pressed() -> void:

@@ -19,6 +19,22 @@ const OPEN_GAME_START_MONTH := 3
 const OPEN_GAME_START_DAY := 1
 const OPEN_GAME_END_MONTH := 3
 const OPEN_GAME_END_DAY := 26
+const INTERLEAGUE_START_MONTH := 5
+const INTERLEAGUE_START_DAY := 26
+const INTERLEAGUE_END_MONTH := 6
+const INTERLEAGUE_END_DAY := 14
+const CLIMAX_FIRST_START_MONTH := 10
+const CLIMAX_FIRST_START_DAY := 10
+const CLIMAX_FIRST_END_MONTH := 10
+const CLIMAX_FIRST_END_DAY := 12
+const CLIMAX_FINAL_START_MONTH := 10
+const CLIMAX_FINAL_START_DAY := 14
+const CLIMAX_FINAL_END_MONTH := 10
+const CLIMAX_FINAL_END_DAY := 19
+const JAPAN_SERIES_START_MONTH := 10
+const JAPAN_SERIES_START_DAY := 24
+const JAPAN_SERIES_END_MONTH := 11
+const JAPAN_SERIES_END_DAY := 1
 const DRAFT_PREP_START_MONTH := 10
 const DRAFT_PREP_START_DAY := 20
 const DRAFT_PREP_END_MONTH := 10
@@ -69,6 +85,8 @@ var recent_finance_log: Array[String] = []
 var last_controlled_team_roster_log: Array[String] = []
 var latest_integrity_notes: Array[String] = []
 var season_history: Array[Dictionary] = []
+var annual_operation_status: Dictionary = {}
+var annual_operation_log: Dictionary = {}
 var prepared_day: int = 0
 var finalized_finance_day: int = 0
 var pending_home_message: String = ""
@@ -93,6 +111,8 @@ func reset() -> void:
 	last_controlled_team_roster_log.clear()
 	latest_integrity_notes.clear()
 	season_history.clear()
+	annual_operation_status.clear()
+	annual_operation_log.clear()
 	prepared_day = 0
 	finalized_finance_day = 0
 	pending_home_message = ""
@@ -300,6 +320,91 @@ func get_team_roster_rule_summary(team_id: String) -> Dictionary:
 		"foreign_fielder_active_max": int(rules.get("foreign_fielder_active_max", 3)),
 		"warnings": warnings
 	}
+
+func get_controlled_team_player_management_summary() -> Dictionary:
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return {}
+
+	var active_count: int = 0
+	var farm_count: int = 0
+	var development_count: int = 0
+	var foreign_active_count: int = 0
+	var foreign_signed_count: int = 0
+
+	for player_id in team.player_ids:
+		var player: PlayerData = get_player(str(player_id))
+		if player == null:
+			continue
+		match str(player.roster_status):
+			"active":
+				active_count += 1
+			"development":
+				development_count += 1
+			_:
+				farm_count += 1
+		if bool(player.is_foreign):
+			foreign_signed_count += 1
+			if str(player.roster_status) == "active":
+				foreign_active_count += 1
+
+	var roster_rule_summary: Dictionary = get_team_roster_rule_summary(str(team.id))
+	return {
+		"team_name": team.name,
+		"active_count": active_count,
+		"farm_count": farm_count,
+		"development_count": development_count,
+		"foreign_signed_count": foreign_signed_count,
+		"foreign_active_count": foreign_active_count,
+		"roster_rule_summary": roster_rule_summary
+	}
+
+func set_controlled_player_roster_status(player_id: String, target_status: String) -> Dictionary:
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return {"ok": false, "message": "担当球団が未設定です。"}
+
+	var player: PlayerData = get_player(player_id)
+	if player == null or not team.player_ids.has(player_id):
+		return {"ok": false, "message": "担当球団の選手ではありません。"}
+
+	var normalized_status: String = str(target_status)
+	if normalized_status not in ["active", "farm", "development"]:
+		return {"ok": false, "message": "変更先の在籍状態が不正です。"}
+
+	if normalized_status == "development":
+		if str(player.registration_type) != "development":
+			return {"ok": false, "message": "支配下選手はそのまま育成契約に戻せません。"}
+		player.roster_status = "development"
+		return {"ok": true, "message": "%s を育成枠に設定しました。" % player.full_name}
+
+	if str(player.registration_type) == "development":
+		return {"ok": false, "message": "育成選手は先に支配下登録が必要です。"}
+
+	player.roster_status = normalized_status
+	var status_label: String = "一軍" if normalized_status == "active" else "二軍"
+	return {"ok": true, "message": "%s を%sに設定しました。" % [player.full_name, status_label]}
+
+func promote_controlled_development_player(player_id: String) -> Dictionary:
+	var team: TeamData = get_controlled_team()
+	if team == null:
+		return {"ok": false, "message": "担当球団が未設定です。"}
+
+	var player: PlayerData = get_player(player_id)
+	if player == null or not team.player_ids.has(player_id):
+		return {"ok": false, "message": "担当球団の選手ではありません。"}
+	if str(player.registration_type) != "development":
+		return {"ok": false, "message": "この選手はすでに支配下です。"}
+
+	var rules: Dictionary = get_roster_ruleset()
+	var registered_count: int = get_team_registered_player_count(str(team.id))
+	var registered_max: int = int(rules.get("registered_roster_max", 70))
+	if registered_count >= registered_max:
+		return {"ok": false, "message": "支配下上限に達しているため昇格できません。"}
+
+	player.registration_type = "registered"
+	player.roster_status = "farm"
+	return {"ok": true, "message": "%s を支配下登録しました。" % player.full_name}
 
 func _append_unique_player_id(target: Array[String], seen: Dictionary, player_id: String) -> void:
 	if player_id == "" or seen.has(player_id):
@@ -678,6 +783,30 @@ func get_calendar_events_for_day(day: int) -> Array[Dictionary]:
 			"label": "開幕日",
 			"summary": "公式戦が開幕します。ここからシーズン本番です。"
 		})
+	if _is_date_in_range(month, day_of_month, INTERLEAGUE_START_MONTH, INTERLEAGUE_START_DAY, INTERLEAGUE_END_MONTH, INTERLEAGUE_END_DAY):
+		events.append({
+			"type": "interleague_period",
+			"label": "交流戦",
+			"summary": "他リーグとの交流戦期間です。普段と違う相手との連戦が続きます。"
+		})
+	if _is_date_in_range(month, day_of_month, CLIMAX_FIRST_START_MONTH, CLIMAX_FIRST_START_DAY, CLIMAX_FIRST_END_MONTH, CLIMAX_FIRST_END_DAY):
+		events.append({
+			"type": "climax_first_stage",
+			"label": "クライマックス・ファースト",
+			"summary": "各リーグ2位と3位が戦う短期決戦の期間です。"
+		})
+	if _is_date_in_range(month, day_of_month, CLIMAX_FINAL_START_MONTH, CLIMAX_FINAL_START_DAY, CLIMAX_FINAL_END_MONTH, CLIMAX_FINAL_END_DAY):
+		events.append({
+			"type": "climax_final_stage",
+			"label": "クライマックス・ファイナル",
+			"summary": "各リーグ1位が待つ最終ステージです。日本シリーズ進出を争います。"
+		})
+	if _is_date_in_range(month, day_of_month, JAPAN_SERIES_START_MONTH, JAPAN_SERIES_START_DAY, JAPAN_SERIES_END_MONTH, JAPAN_SERIES_END_DAY):
+		events.append({
+			"type": "japan_series",
+			"label": "日本シリーズ",
+			"summary": "両リーグ優勝代表が日本一を争う決戦期間です。"
+		})
 	if _is_date_in_range(month, day_of_month, DRAFT_PREP_START_MONTH, DRAFT_PREP_START_DAY, DRAFT_PREP_END_MONTH, DRAFT_PREP_END_DAY):
 		events.append({
 			"type": "draft_prep",
@@ -727,7 +856,7 @@ func get_upcoming_calendar_events(max_count: int = 5, from_day: int = -1) -> Arr
 	for day in range(target_day + 1, get_last_day() + 1):
 		for event_data in get_calendar_events_for_day(day):
 			var event_type: String = str(event_data.get("type", ""))
-			var signature: String = "%s_%d" % [event_type, day]
+			var signature: String = event_type
 			if seen_signatures.has(signature):
 				continue
 			seen_signatures[signature] = true
@@ -1048,6 +1177,46 @@ func get_latest_completed_season_summary() -> Dictionary:
 		return {}
 	return season_history[season_history.size() - 1].duplicate(true)
 
+func get_current_operation_progress() -> Dictionary:
+	_ensure_operation_year_state(season_year)
+	return Dictionary(annual_operation_status.get(str(season_year), {})).duplicate(true)
+
+func get_current_operation_log() -> Array[Dictionary]:
+	_ensure_operation_year_state(season_year)
+	var result: Array[Dictionary] = []
+	for entry in annual_operation_log.get(str(season_year), []):
+		result.append(Dictionary(entry))
+	return result
+
+func _ensure_operation_year_state(year: int) -> void:
+	var year_key: String = str(year)
+	if not annual_operation_status.has(year_key):
+		annual_operation_status[year_key] = {
+			"draft": false,
+			"contract": false,
+			"fa": false,
+			"sponsor": false,
+			"staff": false,
+			"trade": false
+		}
+	if not annual_operation_log.has(year_key):
+		annual_operation_log[year_key] = []
+
+func _mark_operation_completed(operation_key: String, title: String, detail: String) -> void:
+	_ensure_operation_year_state(season_year)
+	var year_key: String = str(season_year)
+	var status: Dictionary = Dictionary(annual_operation_status.get(year_key, {}))
+	status[operation_key] = true
+	annual_operation_status[year_key] = status
+	var log_entries: Array = annual_operation_log.get(year_key, [])
+	log_entries.append({
+		"date_label": get_current_date_label(),
+		"operation": operation_key,
+		"title": title,
+		"detail": detail
+	})
+	annual_operation_log[year_key] = log_entries
+
 func get_controlled_team_history_summary() -> Dictionary:
 	if controlled_team_id == "":
 		return {}
@@ -1195,7 +1364,8 @@ func _apply_team_game_day_finance(team: TeamData, is_home_game: bool, day: int) 
 	team.budget = maxi(0, int(team.budget) + net_change)
 
 	if str(team.id) == controlled_team_id:
-		var line: String = "%s  鬯ｮ・ｯ繝ｻ・ｷ郢晢ｽｻ繝ｻ・ｿ鬮ｯ・ｷ繝ｻ・ｿ髯樊ｻ薙・繝ｻ・ｽ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｪ %s%d  鬯ｮ・ｯ繝ｻ・ｷ鬮｣魃会ｽｽ・ｨ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・･鬯ｮ・ｯ隲幢ｽｶ繝ｻ・ｽ繝ｻ・｣驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｴ+%d  鬯ｩ蟷｢・ｽ・｢郢晢ｽｻ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｹ鬯ｩ蟷｢・ｽ・｢髫ｴ蠑ｱ繝ｻ繝ｻ・ｺ繝ｻ・｢郢晢ｽｻ髮懶ｽ｣繝ｻ・ｽ繝ｻ・ｦ鬯ｩ蟷｢・ｽ・｢郢晢ｽｻ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｵ鬯ｩ蟷｢・ｽ・｢髫ｴ雜｣・ｽ・｢郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｼ+%d  鬯ｮ・｣髮具ｽｻ繝ｻ・｣繝ｻ・ｰ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｺ鬯ｮ・｣雎郁ｲｻ・ｽ・ｼ陞滂ｽｲ繝ｻ・ｽ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｶ鬯ｯ・ｮ繝ｻ・ｮ髯ｷ闌ｨ・ｽ・ｷ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ-%d  鬯ｩ蟷｢・ｽ・｢郢晢ｽｻ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｹ鬯ｩ蟷｢・ｽ・｢郢晢ｽｻ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｿ鬯ｩ蟷｢・ｽ・｢髫ｴ謫ｾ・ｽ・ｴ驛｢譎｢・ｽ・ｻ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｵ-%d  %s-%d" % [
+		var home_away_text: String = "ホーム開催" if is_home_game else "ビジター遠征"
+		var line: String = "%s  収支 %s%d  入場+%d  スポンサー+%d  人件費-%d  スタッフ費-%d  %s-%d" % [
 			get_date_label_for_day(day),
 			"+" if net_change >= 0 else "",
 			net_change,
@@ -1203,7 +1373,7 @@ func _apply_team_game_day_finance(team: TeamData, is_home_game: bool, day: int) 
 			sponsor_income,
 			payroll_cost,
 			staff_cost,
-			"鬯ｯ・ｯ繝ｻ・ｩ髯ｷ閧ｴ・ｺ・ｷ驗ゑｽｰ鬯ｯ・ｮ繝ｻ・ｴ郢晢ｽｻ繝ｻ・ｧ鬯ｯ・ｮ繝ｻ・ｮ髯ｷ闌ｨ・ｽ・ｷ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｻ" if is_home_game else "鬯ｯ・ｯ繝ｻ・ｩ髯具ｽｹ郢晢ｽｻ繝ｻ・ｽ繝ｻ・｣郢晢ｽｻ繝ｻ・ｰ鬯ｮ・ｯ雋・ｽｯ繝ｻ・｣隲帑ｺ･蜷磯Δ譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｲ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｻ",
+			home_away_text,
 			travel_cost
 		]
 		recent_finance_log.append(line)
@@ -1424,6 +1594,103 @@ func get_final_game_day() -> int:
 	for game in schedule:
 		final_day = maxi(final_day, int(game.day))
 	return final_day
+
+func get_first_interleague_day() -> int:
+	var first_day: int = -1
+	for game in schedule:
+		if not _is_interleague_game(game):
+			continue
+		var game_day: int = int(game.day)
+		if first_day < 0 or game_day < first_day:
+			first_day = game_day
+	return first_day
+
+func get_last_interleague_day() -> int:
+	var last_day: int = -1
+	for game in schedule:
+		if not _is_interleague_game(game):
+			continue
+		last_day = maxi(last_day, int(game.day))
+	return last_day
+
+func _find_calendar_day(month: int, day_of_month: int) -> int:
+	for day in range(1, get_last_day() + 1):
+		var date_info: Dictionary = get_date_info_for_day(day)
+		if int(date_info.get("month", 0)) == month and int(date_info.get("day", 0)) == day_of_month:
+			return day
+	return -1
+
+func _append_milestone(milestones: Array[Dictionary], label: String, button_label: String, progress_label: String, target_day: int) -> void:
+	if target_day <= 0:
+		return
+	milestones.append({
+		"label": label,
+		"button_label": button_label,
+		"progress_label": progress_label,
+		"target_day": target_day
+	})
+
+func get_next_calendar_milestone() -> Dictionary:
+	var opening_day: int = get_first_game_day()
+	var first_interleague_day: int = _find_calendar_day(INTERLEAGUE_START_MONTH, INTERLEAGUE_START_DAY)
+	var last_interleague_day: int = _find_calendar_day(INTERLEAGUE_END_MONTH, INTERLEAGUE_END_DAY)
+	var spring_camp_start_day: int = _find_calendar_day(SPRING_CAMP_START_MONTH, SPRING_CAMP_START_DAY)
+	var spring_camp_end_day: int = _find_calendar_day(SPRING_CAMP_END_MONTH, SPRING_CAMP_END_DAY)
+	var open_game_start_day: int = _find_calendar_day(OPEN_GAME_START_MONTH, OPEN_GAME_START_DAY)
+	var open_game_end_day: int = _find_calendar_day(OPEN_GAME_END_MONTH, OPEN_GAME_END_DAY)
+	var climax_first_start_day: int = _find_calendar_day(CLIMAX_FIRST_START_MONTH, CLIMAX_FIRST_START_DAY)
+	var climax_first_end_day: int = _find_calendar_day(CLIMAX_FIRST_END_MONTH, CLIMAX_FIRST_END_DAY)
+	var climax_final_start_day: int = _find_calendar_day(CLIMAX_FINAL_START_MONTH, CLIMAX_FINAL_START_DAY)
+	var climax_final_end_day: int = _find_calendar_day(CLIMAX_FINAL_END_MONTH, CLIMAX_FINAL_END_DAY)
+	var japan_series_start_day: int = _find_calendar_day(JAPAN_SERIES_START_MONTH, JAPAN_SERIES_START_DAY)
+	var japan_series_end_day: int = _find_calendar_day(JAPAN_SERIES_END_MONTH, JAPAN_SERIES_END_DAY)
+	var draft_prep_start_day: int = _find_calendar_day(DRAFT_PREP_START_MONTH, DRAFT_PREP_START_DAY)
+	var draft_day: int = _find_calendar_day(DRAFT_DAY_MONTH, DRAFT_DAY_DAY)
+	var contract_start_day: int = _find_calendar_day(CONTRACT_PERIOD_START_MONTH, CONTRACT_PERIOD_START_DAY)
+	var contract_end_day: int = _find_calendar_day(CONTRACT_PERIOD_END_MONTH, CONTRACT_PERIOD_END_DAY)
+	var fa_start_day: int = _find_calendar_day(FA_PERIOD_START_MONTH, FA_PERIOD_START_DAY)
+	var fa_end_day: int = _find_calendar_day(FA_PERIOD_END_MONTH, FA_PERIOD_END_DAY)
+	var sponsor_start_day: int = _find_calendar_day(SPONSOR_PERIOD_START_MONTH, SPONSOR_PERIOD_START_DAY)
+	var sponsor_end_day: int = _find_calendar_day(SPONSOR_PERIOD_END_MONTH, SPONSOR_PERIOD_END_DAY)
+	var staff_review_start_day: int = _find_calendar_day(STAFF_REVIEW_START_MONTH, STAFF_REVIEW_START_DAY)
+	var staff_review_end_day: int = _find_calendar_day(STAFF_REVIEW_END_MONTH, STAFF_REVIEW_END_DAY)
+
+	var milestones: Array[Dictionary] = []
+	_append_milestone(milestones, "春季キャンプ", "キャンプまで", "春季キャンプ開始", spring_camp_start_day)
+	_append_milestone(milestones, "キャンプ終了", "キャンプ終了まで", "春季キャンプ終了", spring_camp_end_day)
+	_append_milestone(milestones, "オープン戦", "オープン戦まで", "オープン戦開始", open_game_start_day)
+	_append_milestone(milestones, "オープン戦終了", "オープン戦終了まで", "オープン戦終了", open_game_end_day)
+	_append_milestone(milestones, "開幕", "開幕まで", "開幕", opening_day)
+	_append_milestone(milestones, "交流戦", "交流戦まで", "交流戦開始", first_interleague_day)
+	_append_milestone(milestones, "交流戦終了", "交流戦明けまで", "交流戦終了", last_interleague_day)
+	_append_milestone(milestones, "クライマックス開始", "CS開始まで", "クライマックス開始", climax_first_start_day)
+	_append_milestone(milestones, "クライマックス1st終了", "CS1st終了まで", "クライマックス1st終了", climax_first_end_day)
+	_append_milestone(milestones, "クライマックスFinal", "CS Finalまで", "クライマックスFinal開始", climax_final_start_day)
+	_append_milestone(milestones, "クライマックスFinal終了", "CS終了まで", "クライマックスFinal終了", climax_final_end_day)
+	_append_milestone(milestones, "日本シリーズ", "日本Sまで", "日本シリーズ開始", japan_series_start_day)
+	_append_milestone(milestones, "日本シリーズ終了", "日本S終了まで", "日本シリーズ終了", japan_series_end_day)
+	_append_milestone(milestones, "ドラフト準備", "ドラフト準備まで", "ドラフト準備開始", draft_prep_start_day)
+	_append_milestone(milestones, "ドラフト会議", "ドラフト会議まで", "ドラフト会議", draft_day)
+	_append_milestone(milestones, "契約更改", "契約更改まで", "契約更改開始", contract_start_day)
+	_append_milestone(milestones, "契約更改終了", "更改終了まで", "契約更改終了", contract_end_day)
+	_append_milestone(milestones, "FA交渉", "FA期間まで", "FA交渉開始", fa_start_day)
+	_append_milestone(milestones, "FA終了", "FA終了まで", "FA交渉終了", fa_end_day)
+	_append_milestone(milestones, "スポンサー更改", "スポンサー期まで", "スポンサー更改開始", sponsor_start_day)
+	_append_milestone(milestones, "スポンサー終了", "スポンサー終了まで", "スポンサー更改終了", sponsor_end_day)
+	_append_milestone(milestones, "スタッフ見直し", "スタッフ期まで", "スタッフ見直し開始", staff_review_start_day)
+	_append_milestone(milestones, "スタッフ見直し終了", "スタッフ期終了まで", "スタッフ見直し終了", staff_review_end_day)
+
+	for milestone in milestones:
+		var milestone_day: int = int(milestone.get("target_day", -1))
+		if milestone_day > current_day:
+			return milestone
+
+	return {"label": "年越し", "button_label": "年越しまで", "progress_label": "年越し", "target_day": get_last_day()}
+
+func _is_interleague_game(game: GameData) -> bool:
+	var away_league: String = _get_team_league_key(str(game.away_team_id))
+	var home_league: String = _get_team_league_key(str(game.home_team_id))
+	return away_league != "" and home_league != "" and away_league != home_league
 
 func get_season_phase() -> String:
 	var first_game_day: int = get_first_game_day()
@@ -1670,10 +1937,12 @@ func upgrade_team_facility(team_id: String, facility_key: String) -> Dictionary:
 		return {"ok": false, "message": "予算が不足しています。必要額: %d" % cost}
 	team.budget = int(team.budget) - cost
 	team.facilities[facility_key] = current_level + 1
-	return {
+	var result := {
 		"ok": true,
 		"message": "%sをLv.%dに強化しました。予算 -%d" % [_get_facility_label(facility_key), current_level + 1, cost]
 	}
+	_mark_operation_completed("staff", "施設強化", str(result["message"]))
+	return result
 
 func change_team_staff(team_id: String, staff_key: String, delta: int) -> Dictionary:
 	var team: TeamData = get_team(team_id)
@@ -1689,13 +1958,17 @@ func change_team_staff(team_id: String, staff_key: String, delta: int) -> Dictio
 		if current_count <= min_count:
 			return {"ok": false, "message": "%sはこれ以上減らせません。" % _get_staff_label(staff_key)}
 		team.staff[staff_key] = current_count - 1
-		return {"ok": true, "message": "%sを1人減らしました。" % _get_staff_label(staff_key)}
+		var reduce_result := {"ok": true, "message": "%sを1人減らしました。" % _get_staff_label(staff_key)}
+		_mark_operation_completed("staff", "スタッフ見直し", str(reduce_result["message"]))
+		return reduce_result
 	var hire_cost: int = 1800 + current_count * 1200
 	if int(team.budget) < hire_cost:
 		return {"ok": false, "message": "予算が不足しています。必要額: %d" % hire_cost}
 	team.budget = int(team.budget) - hire_cost
 	team.staff[staff_key] = current_count + 1
-	return {"ok": true, "message": "%sを1人増やしました。予算 -%d" % [_get_staff_label(staff_key), hire_cost]}
+	var hire_result := {"ok": true, "message": "%sを1人増やしました。予算 -%d" % [_get_staff_label(staff_key), hire_cost]}
+	_mark_operation_completed("staff", "スタッフ見直し", str(hire_result["message"]))
+	return hire_result
 
 func pitch_team_sponsor(team_id: String) -> Dictionary:
 	var team: TeamData = get_team(team_id)
@@ -1707,10 +1980,14 @@ func pitch_team_sponsor(team_id: String) -> Dictionary:
 	if growth_roll >= 55 and int(team.sponsor_tier) < 5:
 		team.sponsor_tier = int(team.sponsor_tier) + 1
 		team.sponsor_name = _roll_sponsor_name(team)
-		return {"ok": true, "message": "スポンサーがランクアップしました: %s / Tier %d" % [team.sponsor_name, int(team.sponsor_tier)]}
+		var rankup_result := {"ok": true, "message": "スポンサーがランクアップしました: %s / Tier %d" % [team.sponsor_name, int(team.sponsor_tier)]}
+		_mark_operation_completed("sponsor", "スポンサー更改", str(rankup_result["message"]))
+		return rankup_result
 	var bonus_budget: int = 1200 + marketing_level * 300
 	team.budget = int(team.budget) + bonus_budget
-	return {"ok": true, "message": "スポンサー営業が成功しました。予算 +%d" % bonus_budget}
+	var sponsor_result := {"ok": true, "message": "スポンサー営業が成功しました。予算 +%d" % bonus_budget}
+	_mark_operation_completed("sponsor", "スポンサー更改", str(sponsor_result["message"]))
+	return sponsor_result
 
 func get_controlled_team_contract_summary() -> Dictionary:
 	var team: TeamData = get_controlled_team()
@@ -1754,10 +2031,12 @@ func renew_controlled_player_contract(player_id: String, years: int = 2) -> Dict
 	player.contract_years_left = clampi(int(player.contract_years_left) + years, 1, 5)
 	player.desired_salary = int(round(float(player.salary) * 1.08))
 	player.fa_interest = clampi(int(player.fa_interest) - 12, 0, 100)
-	return {
+	var renewal_result := {
 		"ok": true,
 		"message": "%sと%d年契約を結びました。予算 -%d / 年俸 %d" % [player.full_name, years, signing_bonus, int(player.salary)]
 	}
+	_mark_operation_completed("contract", "契約更改", str(renewal_result["message"]))
+	return renewal_result
 
 func get_fa_candidate_list() -> Array[Dictionary]:
 	var candidates: Array[Dictionary] = []
@@ -1844,13 +2123,15 @@ func negotiate_controlled_team_fa(player_id: String, years: int = 3) -> Dictiona
 		team.player_ids.append(str(player.id))
 	_rebuild_team_competitive_structures(team)
 
-	return {
+	var fa_result := {
 		"ok": true,
 		"message": "%sと%d年契約を結びました。予算 -%d / 年俸 %d" % [player.full_name, years, signing_cost, int(player.salary)],
 		"player_name": player.full_name,
 		"years": years,
 		"cost": signing_cost
 	}
+	_mark_operation_completed("fa", "FA交渉", str(fa_result["message"]))
+	return fa_result
 
 func get_controlled_team_trade_proposals() -> Array[Dictionary]:
 	var team: TeamData = get_controlled_team()
@@ -1930,10 +2211,12 @@ func execute_controlled_team_trade(give_player_id: String, take_player_id: Strin
 	_rebuild_team_competitive_structures(team)
 	_rebuild_team_competitive_structures(other_team)
 
-	return {
+	var trade_result := {
 		"ok": true,
 		"message": "%sとのトレード成立: %s ⇄ %s" % [other_team.name, give_player.full_name, take_player.full_name]
 	}
+	_mark_operation_completed("trade", "トレード成立", str(trade_result["message"]))
+	return trade_result
 
 func get_controlled_team_draft_prospects() -> Array[Dictionary]:
 	var team: TeamData = get_controlled_team()
@@ -2035,7 +2318,7 @@ func run_controlled_team_draft() -> Dictionary:
 	team.last_draft_result_names = [player.full_name]
 	team.draft_focus_ids.clear()
 
-	return {
+	var draft_result := {
 		"ok": true,
 		"message": "ドラフトで %s を指名しました。" % player.full_name,
 		"player_name": player.full_name,
@@ -2043,6 +2326,8 @@ func run_controlled_team_draft() -> Dictionary:
 		"overall": int(player.overall),
 		"potential": int(player.potential)
 	}
+	_mark_operation_completed("draft", "ドラフト会議", str(draft_result["message"]))
+	return draft_result
 
 
 func _apply_player_offseason(player: PlayerData) -> void:
@@ -2526,6 +2811,8 @@ func to_save_dict() -> Dictionary:
 		"recent_finance_log": recent_finance_log.duplicate(),
 		"last_controlled_team_roster_log": last_controlled_team_roster_log.duplicate(),
 		"season_history": season_history.duplicate(true),
+		"annual_operation_status": annual_operation_status.duplicate(true),
+		"annual_operation_log": annual_operation_log.duplicate(true),
 		"daily_team_bonuses": daily_team_bonuses.duplicate(true),
 		"teams": team_dict,
 		"players": player_dict,
@@ -2558,6 +2845,8 @@ func load_from_dict(data: Dictionary) -> void:
 	for history_entry in data.get("season_history", []):
 		if history_entry is Dictionary:
 			season_history.append((history_entry as Dictionary).duplicate(true))
+	annual_operation_status = data.get("annual_operation_status", {}).duplicate(true)
+	annual_operation_log = data.get("annual_operation_log", {}).duplicate(true)
 	daily_team_bonuses = data.get("daily_team_bonuses", {}).duplicate(true)
 
 	teams.clear()
