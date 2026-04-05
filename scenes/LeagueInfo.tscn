@@ -45,6 +45,26 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = ""
 
+[node name="TabButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OverviewTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="ScheduleTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="LeadersTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="HistoryTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
@@ -69,7 +89,7 @@ layout_mode = 2
 text = ""
 
 [node name="OverviewDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/OverviewCard"]
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 92)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -85,7 +105,7 @@ layout_mode = 2
 text = ""
 
 [node name="ControlledTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/ControlledTeamCard"]
-custom_minimum_size = Vector2(0, 160)
+custom_minimum_size = Vector2(0, 116)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -101,7 +121,7 @@ layout_mode = 2
 text = ""
 
 [node name="SeasonStatusDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonStatusCard"]
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -117,7 +137,7 @@ layout_mode = 2
 text = ""
 
 [node name="SeasonHistoryDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonHistoryCard"]
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""

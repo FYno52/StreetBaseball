@@ -1,15 +1,15 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scripts/sponsor_office.gd" id="1_sponsor"]
+[ext_resource type="Script" path="res://scripts/roster_management.gd" id="1_roster_management"]
 
-[node name="SponsorOffice" type="Control"]
+[node name="RosterManagement" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_sponsor")
+script = ExtResource("1_roster_management")
 
 [node name="RootScroll" type="ScrollContainer" parent="."]
 layout_mode = 1
@@ -39,32 +39,48 @@ text = ""
 
 [node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="BackButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
 layout_mode = 2
 text = ""
 
+[node name="ViewButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 28)
+custom_minimum_size = Vector2(0, 56)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="DetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 52)
+[node name="StatusButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
+theme_override_constants/separation = 8
 
-[node name="SponsorButton" type="Button" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="FilterAllButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StatusButtonsHBox"]
 layout_mode = 2
 text = ""
 
-[node name="StatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 40)
+[node name="FilterActiveButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StatusButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="FilterFarmButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StatusButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="FilterDevelopmentButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StatusButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="FilterForeignButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/StatusButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="RosterVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
+theme_override_constants/separation = 8

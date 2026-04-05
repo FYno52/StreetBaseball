@@ -2,6 +2,26 @@
 
 [ext_resource type="Script" path="res://scripts/calendar_scene.gd" id="1_calendar"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
+bg_color = Color(0.105882, 0.105882, 0.117647, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header"]
+bg_color = Color(0.141176, 0.12549, 0.160784, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_primary_tabs"]
+bg_color = Color(0.282353, 0.0823529, 0.45098, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_secondary_tabs"]
+bg_color = Color(0.854902, 0.870588, 0.901961, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_content"]
+bg_color = Color(0.164706, 0.164706, 0.180392, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.32549, 0.32549, 0.345098, 1)
+
 [node name="CalendarScene" type="Control"]
 layout_mode = 3
 anchors_preset = 15
@@ -11,135 +31,288 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_calendar")
 
-[node name="RootScroll" type="ScrollContainer" parent="."]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+color = Color(0.137255, 0.137255, 0.14902, 1)
 
-[node name="MarginContainer" type="MarginContainer" parent="RootScroll"]
+[node name="RootMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="RootVBox" type="VBoxContainer" parent="RootMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 20
+theme_override_constants/separation = 0
 
-[node name="RootVBox" type="VBoxContainer" parent="RootScroll/MarginContainer"]
+[node name="TopBarPanel" type="PanelContainer" parent="RootMargin/RootVBox"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 12
+theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
 
-[node name="TitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="TopBarMargin" type="MarginContainer" parent="RootMargin/RootVBox/TopBarPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
+
+[node name="TopBarHBox" type="HBoxContainer" parent="RootMargin/RootVBox/TopBarPanel/TopBarMargin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="TopMenuLabel" type="Label" parent="RootMargin/RootVBox/TopBarPanel/TopBarMargin/TopBarHBox"]
 layout_mode = 2
 text = ""
 
-[node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="TopCenterLabel" type="Label" parent="RootMargin/RootVBox/TopBarPanel/TopBarMargin/TopBarHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 1
+text = ""
+
+[node name="TopRightLabel" type="Label" parent="RootMargin/RootVBox/TopBarPanel/TopBarMargin/TopBarHBox"]
+layout_mode = 2
+horizontal_alignment = 2
+text = ""
+
+[node name="HeaderPanel" type="PanelContainer" parent="RootMargin/RootVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_header")
+
+[node name="HeaderMargin" type="MarginContainer" parent="RootMargin/RootVBox/HeaderPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 14
+
+[node name="HeaderHBox" type="HBoxContainer" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="LogoPanel" type="PanelContainer" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderHBox"]
+custom_minimum_size = Vector2(88, 88)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
+
+[node name="LogoLabel" type="Label" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderHBox/LogoPanel"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+text = ""
+
+[node name="TeamSummaryVBox" type="VBoxContainer" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="TeamNameLabel" type="Label" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderHBox/TeamSummaryVBox"]
+layout_mode = 2
+text = ""
+
+[node name="TeamRecordLabel" type="Label" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderHBox/TeamSummaryVBox"]
+layout_mode = 2
+text = ""
+
+[node name="HeaderRightVBox" type="VBoxContainer" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderHBox"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ScheduleInfoLabel" type="Label" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderHBox/HeaderRightVBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="ContinueButton" type="Button" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderHBox/HeaderRightVBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = ""
+
+[node name="PrimaryTabsPanel" type="PanelContainer" parent="RootMargin/RootVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_primary_tabs")
+
+[node name="PrimaryTabsMargin" type="MarginContainer" parent="RootMargin/RootVBox/PrimaryTabsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
+
+[node name="PrimaryTabsHBox" type="HBoxContainer" parent="RootMargin/RootVBox/PrimaryTabsPanel/PrimaryTabsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="PrimaryHomeLabel" type="Label" parent="RootMargin/RootVBox/PrimaryTabsPanel/PrimaryTabsMargin/PrimaryTabsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="PrimaryOrganizationLabel" type="Label" parent="RootMargin/RootVBox/PrimaryTabsPanel/PrimaryTabsMargin/PrimaryTabsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="PrimaryScoutingLabel" type="Label" parent="RootMargin/RootVBox/PrimaryTabsPanel/PrimaryTabsMargin/PrimaryTabsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="PrimaryInfoLabel" type="Label" parent="RootMargin/RootVBox/PrimaryTabsPanel/PrimaryTabsMargin/PrimaryTabsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="SecondaryTabsPanel" type="PanelContainer" parent="RootMargin/RootVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_secondary_tabs")
+
+[node name="SecondaryTabsMargin" type="MarginContainer" parent="RootMargin/RootVBox/SecondaryTabsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 4
+
+[node name="SecondaryTabsHBox" type="HBoxContainer" parent="RootMargin/RootVBox/SecondaryTabsPanel/SecondaryTabsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="BackButton" type="Button" parent="RootMargin/RootVBox/SecondaryTabsPanel/SecondaryTabsMargin/SecondaryTabsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="ScheduleTabTitleLabel" type="Label" parent="RootMargin/RootVBox/SecondaryTabsPanel/SecondaryTabsMargin/SecondaryTabsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="EventsTabButton" type="Button" parent="RootMargin/RootVBox/SecondaryTabsPanel/SecondaryTabsMargin/SecondaryTabsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="ScheduleTabButton" type="Button" parent="RootMargin/RootVBox/SecondaryTabsPanel/SecondaryTabsMargin/SecondaryTabsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="ContentPanel" type="PanelContainer" parent="RootMargin/RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_content")
+
+[node name="ContentMargin" type="MarginContainer" parent="RootMargin/RootVBox/ContentPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
+
+[node name="ContentVBox" type="VBoxContainer" parent="RootMargin/RootVBox/ContentPanel/ContentMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="CalendarHeaderHBox" type="HBoxContainer" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="CalendarTitleLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarHeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="TodayInfoLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarHeaderHBox"]
+layout_mode = 2
+horizontal_alignment = 2
+text = ""
+
+[node name="MonthTabsHBox" type="HBoxContainer" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="BackButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+[node name="CalendarColumns" type="HBoxContainer" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="CalendarMainVBox" type="VBoxContainer" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="WeekHeaderGrid" type="GridContainer" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/CalendarMainVBox"]
+layout_mode = 2
+columns = 7
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+
+[node name="MonthCalendarGrid" type="GridContainer" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/CalendarMainVBox"]
+layout_mode = 2
+columns = 7
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+
+[node name="LegendLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/CalendarMainVBox"]
 layout_mode = 2
 text = ""
 
-[node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 32)
+[node name="DetailSidebar" type="VBoxContainer" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns"]
+custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="TopSummaryHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 16
-
-[node name="TodayCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/TopSummaryHBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="TodayTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopSummaryHBox/TodayCard"]
-layout_mode = 2
-text = ""
-
-[node name="TodayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopSummaryHBox/TodayCard"]
-custom_minimum_size = Vector2(0, 110)
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="UpcomingCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/TopSummaryHBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="UpcomingTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopSummaryHBox/UpcomingCard"]
-layout_mode = 2
-text = ""
-
-[node name="UpcomingDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/TopSummaryHBox/UpcomingCard"]
-custom_minimum_size = Vector2(0, 110)
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="ContentColumns" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 20
-
-[node name="LeftVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns"]
-layout_mode = 2
-size_flags_horizontal = 1
-custom_minimum_size = Vector2(260, 0)
 theme_override_constants/separation = 10
 
-[node name="MonthTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftVBox"]
+[node name="MonthSummaryLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/DetailSidebar"]
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+text = ""
+autowrap_mode = 3
+
+[node name="UpcomingTitleLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/DetailSidebar"]
 layout_mode = 2
 text = ""
 
-[node name="MonthButtonsGrid" type="GridContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftVBox"]
+[node name="UpcomingDetailLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/DetailSidebar"]
+custom_minimum_size = Vector2(0, 110)
 layout_mode = 2
-columns = 3
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
+text = ""
+autowrap_mode = 3
 
-[node name="MonthSummaryLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftVBox"]
+[node name="MonthlyEventsTitleLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/DetailSidebar"]
+layout_mode = 2
+text = ""
+
+[node name="MonthlyEventsDetailLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/DetailSidebar"]
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
-size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="RightVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 10
-
-[node name="MonthlyEventsTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightVBox"]
+[node name="ScheduleTitleLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/DetailSidebar"]
 layout_mode = 2
 text = ""
 
-[node name="MonthlyEventsDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightVBox"]
-custom_minimum_size = Vector2(0, 260)
+[node name="ScheduleDetailLabel" type="Label" parent="RootMargin/RootVBox/ContentPanel/ContentMargin/ContentVBox/CalendarColumns/DetailSidebar"]
+custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="ScheduleTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightVBox"]
-layout_mode = 2
-text = ""
-
-[node name="ScheduleDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightVBox"]
-custom_minimum_size = Vector2(0, 420)
-layout_mode = 2
-size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3

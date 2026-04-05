@@ -2,10 +2,23 @@
 
 const HOME_SCENE_PATH := "res://scenes/LeagueHome.tscn"
 const GAME_DETAIL_SCENE_PATH := "res://scenes/GameDetail.tscn"
+const OOTP_SHELL_SCRIPT = preload("res://scripts/ui/ootp_shell.gd")
 
 @onready var title_label: Label = $RootScroll/MarginContainer/RootVBox/TitleLabel
 @onready var back_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/BackButton
 @onready var info_label: Label = $RootScroll/MarginContainer/RootVBox/InfoLabel
+@onready var overview_tab_button: Button = $RootScroll/MarginContainer/RootVBox/TabButtonsHBox/OverviewTabButton
+@onready var schedule_tab_button: Button = $RootScroll/MarginContainer/RootVBox/TabButtonsHBox/ScheduleTabButton
+@onready var leaders_tab_button: Button = $RootScroll/MarginContainer/RootVBox/TabButtonsHBox/LeadersTabButton
+@onready var history_tab_button: Button = $RootScroll/MarginContainer/RootVBox/TabButtonsHBox/HistoryTabButton
+@onready var summary_grid: GridContainer = $RootScroll/MarginContainer/RootVBox/SummaryGrid
+@onready var overview_card: VBoxContainer = $RootScroll/MarginContainer/RootVBox/SummaryGrid/OverviewCard
+@onready var controlled_team_card: VBoxContainer = $RootScroll/MarginContainer/RootVBox/SummaryGrid/ControlledTeamCard
+@onready var season_status_card: VBoxContainer = $RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonStatusCard
+@onready var season_history_card: VBoxContainer = $RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonHistoryCard
+@onready var content_columns: HBoxContainer = $RootScroll/MarginContainer/RootVBox/ContentColumns
+@onready var left_content_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox
+@onready var right_content_vbox: VBoxContainer = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox
 @onready var overview_title_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/OverviewCard/OverviewTitleLabel
 @onready var overview_detail_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/OverviewCard/OverviewDetailLabel
 @onready var controlled_team_title_label: Label = $RootScroll/MarginContainer/RootVBox/SummaryGrid/ControlledTeamCard/ControlledTeamTitleLabel
@@ -32,11 +45,26 @@ const GAME_DETAIL_SCENE_PATH := "res://scenes/GameDetail.tscn"
 
 var selected_game_id: String = ""
 var recent_game_ids: Array[String] = []
+var current_tab: String = "overview"
 
 func _ready() -> void:
-	title_label.text = "リーグ情報"
+	OOTP_SHELL_SCRIPT.install(self, {
+		"primary_tab": "info",
+		"section_label": "INFO",
+		"sub_tab": "overview",
+		"sub_tabs": [
+			{"key": "overview", "label": "OVERVIEW", "scene": "res://scenes/LeagueInfo.tscn"},
+			{"key": "calendar", "label": "CALENDAR", "scene": "res://scenes/CalendarScene.tscn"},
+			{"key": "records", "label": "RECORDS", "scene": "res://scenes/RecordRoom.tscn"}
+		],
+		"top_right": "INFO"
+	})
+	title_label.visible = false
 	back_button.text = "ホームへ戻る"
-	info_label.text = "リーグ全体の流れを確認する画面です。日付ベースの年間進行に合わせて、順位表、個人成績、ニュース、日程をまとめて確認できます。"
+	overview_tab_button.text = "概況"
+	schedule_tab_button.text = "日程"
+	leaders_tab_button.text = "個人成績"
+	history_tab_button.text = "履歴"
 	overview_title_label.text = "リーグ概況"
 	controlled_team_title_label.text = "担当球団の立ち位置"
 	season_status_title_label.text = "シーズン状況"
@@ -50,6 +78,10 @@ func _ready() -> void:
 	detailed_log_title_label.text = "試合詳細ログ"
 
 	back_button.pressed.connect(_on_back_button_pressed)
+	overview_tab_button.pressed.connect(_on_tab_pressed.bind("overview"))
+	schedule_tab_button.pressed.connect(_on_tab_pressed.bind("schedule"))
+	leaders_tab_button.pressed.connect(_on_tab_pressed.bind("leaders"))
+	history_tab_button.pressed.connect(_on_tab_pressed.bind("history"))
 	_refresh_view()
 
 func _refresh_view() -> void:
@@ -64,23 +96,73 @@ func _refresh_view() -> void:
 	_refresh_recent_games()
 	_refresh_decision_summary()
 	_refresh_detailed_log()
+	_refresh_tab_visibility()
 
 func _on_back_button_pressed() -> void:
 	get_tree().change_scene_to_file(HOME_SCENE_PATH)
+
+func _on_tab_pressed(tab_key: String) -> void:
+	current_tab = tab_key
+	_refresh_tab_visibility()
+
+func _refresh_tab_visibility() -> void:
+	for button in [overview_tab_button, schedule_tab_button, leaders_tab_button, history_tab_button]:
+		button.toggle_mode = true
+	overview_tab_button.button_pressed = current_tab == "overview"
+	schedule_tab_button.button_pressed = current_tab == "schedule"
+	leaders_tab_button.button_pressed = current_tab == "leaders"
+	history_tab_button.button_pressed = current_tab == "history"
+
+	overview_card.visible = current_tab == "overview"
+	controlled_team_card.visible = current_tab == "overview"
+	season_status_card.visible = current_tab == "overview" or current_tab == "history"
+	season_history_card.visible = current_tab == "history"
+	summary_grid.visible = current_tab == "overview" or current_tab == "history"
+
+	leaders_title_label.visible = current_tab == "leaders"
+	batting_leaders_label.visible = current_tab == "leaders"
+	pitching_leaders_label.visible = current_tab == "leaders"
+	event_title_label.visible = current_tab == "overview"
+	event_detail_label.visible = current_tab == "overview"
+	standings_title_label.visible = current_tab == "overview"
+	standings_vbox.visible = current_tab == "overview"
+
+	schedule_title_label.visible = current_tab == "schedule"
+	schedule_vbox.visible = current_tab == "schedule"
+	recent_games_title_label.visible = current_tab == "schedule"
+	recent_games_vbox.visible = current_tab == "schedule"
+	decision_title_label.visible = current_tab == "schedule"
+	decision_detail_label.visible = current_tab == "schedule"
+	detailed_log_title_label.visible = current_tab == "schedule"
+	detailed_log_detail_label.visible = current_tab == "schedule"
+
+	left_content_vbox.visible = current_tab == "overview" or current_tab == "leaders"
+	right_content_vbox.visible = current_tab == "schedule"
+	content_columns.visible = left_content_vbox.visible or right_content_vbox.visible
+
+	match current_tab:
+		"overview":
+			info_label.text = "リーグ全体の流れをざっと確認するトップです。順位、担当球団の立ち位置、ニュースをまとめて見られます。"
+		"schedule":
+			info_label.text = "担当球団の日程と試合詳細を確認します。年間の流れと直近の試合結果を追えます。"
+		"leaders":
+			info_label.text = "個人成績の上位を確認します。打者部門と投手部門を絞って見られます。"
+		"history":
+			info_label.text = "シーズン履歴と年度推移を確認します。長期プレイの積み上がりを見るページです。"
 
 func _refresh_overview() -> void:
 	var lines: Array[String] = []
 	var sorted_teams: Array = LeagueState.get_teams_sorted_by_win_pct()
 	var controlled_team: TeamData = LeagueState.get_controlled_team()
 	var phase: String = LeagueState.get_season_phase()
-	lines.append("日付: %s" % LeagueState.get_current_date_label())
+	lines.append("%s" % LeagueState.get_current_date_label())
 	match phase:
 		"preseason":
-			lines.append("状態: 開幕前")
+			lines.append("開幕前")
 		"regular":
-			lines.append("状態: シーズン中")
+			lines.append("シーズン中")
 		_:
-			lines.append("状態: オフシーズン")
+			lines.append("オフシーズン")
 	if controlled_team != null:
 		lines.append("担当球団: %s" % controlled_team.name)
 	if not sorted_teams.is_empty():
@@ -88,16 +170,15 @@ func _refresh_overview() -> void:
 		lines.append("首位: %s  %d勝 %d敗 %d分" % [leader.name, int(leader.standings["wins"]), int(leader.standings["losses"]), int(leader.standings["draws"])])
 
 	var games_count: int = LeagueState.get_games_for_day(LeagueState.current_day).size()
-	lines.append("今日の試合数: %d" % games_count)
+	lines.append("今日の試合: %d" % games_count)
 	var next_game_day: int = LeagueState.get_next_game_day(LeagueState.current_day, LeagueState.controlled_team_id)
 	if next_game_day >= 0:
-		lines.append("担当球団の次戦: %s" % LeagueState.get_date_label_for_day(next_game_day))
+		lines.append("次戦: %s" % LeagueState.get_date_label_for_day(next_game_day))
 	var upcoming_events: Array[Dictionary] = LeagueState.get_upcoming_calendar_events(3)
 	if not upcoming_events.is_empty():
-		lines.append("")
-		lines.append("次に来るイベント")
+		lines.append("次のイベント")
 		for event_data in upcoming_events:
-			lines.append("- %s  %s" % [str(event_data.get("date_label", "")), str(event_data.get("label", ""))])
+			lines.append("%s  %s" % [str(event_data.get("date_label", "")), str(event_data.get("label", ""))])
 
 	overview_detail_label.text = "\n".join(lines)
 
@@ -116,33 +197,32 @@ func _refresh_controlled_team_summary() -> void:
 			break
 
 	var lines: Array[String] = []
-	lines.append("球団: %s" % controlled_team.name)
+	lines.append("%s" % controlled_team.name)
 	if rank > 0:
-		lines.append("順位: %d位" % rank)
+		lines.append("%d位" % rank)
 	else:
-		lines.append("順位: 集計中")
-	lines.append("戦績: %d勝 %d敗 %d分" % [int(controlled_team.standings["wins"]), int(controlled_team.standings["losses"]), int(controlled_team.standings["draws"])])
-	lines.append("得失点: %d / %d" % [int(controlled_team.standings["runs_for"]), int(controlled_team.standings["runs_against"])])
-	lines.append("人気: %d  予算: %d  年俸総額: %d" % [int(controlled_team.fan_support), int(controlled_team.budget), LeagueState.get_team_total_salary(str(controlled_team.id))])
+		lines.append("順位集計中")
+	lines.append("%d勝 %d敗 %d分" % [int(controlled_team.standings["wins"]), int(controlled_team.standings["losses"]), int(controlled_team.standings["draws"])])
+	lines.append("得失点 %d / %d" % [int(controlled_team.standings["runs_for"]), int(controlled_team.standings["runs_against"])])
+	lines.append("人気 %d / 予算 %d / 年俸総額 %d" % [int(controlled_team.fan_support), int(controlled_team.budget), LeagueState.get_team_total_salary(str(controlled_team.id))])
 	if not sorted_teams.is_empty():
 		var leader: TeamData = sorted_teams[0]
 		if leader != null and str(leader.id) != str(controlled_team.id):
 			var win_gap: int = int(leader.standings["wins"]) - int(controlled_team.standings["wins"])
-			lines.append("首位との差: %d勝差" % win_gap)
+			lines.append("首位と %d勝差" % win_gap)
 	var history_summary: Dictionary = LeagueState.get_controlled_team_history_summary()
 	if not history_summary.is_empty() and int(history_summary.get("seasons", 0)) > 0:
-		lines.append("")
-		lines.append("通算: %d年 / %d勝 %d敗 %d分" % [
+		lines.append("通算 %d年 / %d勝 %d敗 %d分" % [
 			int(history_summary.get("seasons", 0)),
 			int(history_summary.get("total_wins", 0)),
 			int(history_summary.get("total_losses", 0)),
 			int(history_summary.get("total_draws", 0))
 		])
-		lines.append("優勝: %d回  最高順位: %d位" % [
+		lines.append("優勝 %d回 / 最高 %d位" % [
 			int(history_summary.get("championships", 0)),
 			int(history_summary.get("best_rank", 0))
 		])
-		lines.append("直近年俸総額: %d" % int(history_summary.get("latest_total_salary", 0)))
+		lines.append("直近年俸総額 %d" % int(history_summary.get("latest_total_salary", 0)))
 
 	controlled_team_detail_label.text = "\n".join(lines)
 
@@ -150,20 +230,18 @@ func _refresh_season_status() -> void:
 	var phase: String = LeagueState.get_season_phase()
 	var lines: Array[String] = []
 	lines.append("%d年" % LeagueState.season_year)
-	lines.append("現在の日付: %s" % LeagueState.get_current_date_label())
+	lines.append(LeagueState.get_current_date_label())
 	match phase:
 		"preseason":
-			lines.append("状態: 開幕前")
-			lines.append("開幕予定: %s" % LeagueState.get_date_label_for_day(LeagueState.get_first_game_day()))
+			lines.append("開幕前")
+			lines.append("開幕予定 %s" % LeagueState.get_date_label_for_day(LeagueState.get_first_game_day()))
 		"regular":
-			lines.append("状態: シーズン中")
-			lines.append("最終戦予定: %s" % LeagueState.get_date_label_for_day(LeagueState.get_final_game_day()))
+			lines.append("シーズン中")
+			lines.append("最終戦予定 %s" % LeagueState.get_date_label_for_day(LeagueState.get_final_game_day()))
 		_:
-			lines.append("状態: オフシーズン")
-			lines.append("年末を越えると自動で次年度へ移行します。")
-	lines.append("")
-	lines.append("今日の年間イベント")
-	lines.append(LeagueState.get_calendar_summary_text())
+			lines.append("オフシーズン")
+			lines.append("年末を越えると自動で次年度へ移行")
+	lines.append("今日のイベント: %s" % LeagueState.get_calendar_summary_text())
 	var latest_summary: Dictionary = LeagueState.get_latest_completed_season_summary()
 	if not latest_summary.is_empty():
 		lines.append("")

@@ -6,6 +6,10 @@ const GAME_DATA_SCRIPT = preload("res://scripts/data/game_data.gd")
 const TEAM_BLUEPRINTS_SCRIPT = preload("res://scripts/data/team_blueprints.gd")
 const OPENING_DATA_SCRIPT = preload("res://scripts/data/npb_inspired_opening_data.gd")
 const FIXED_ROSTER_BUILDER_SCRIPT = preload("res://scripts/autoload/fixed_roster_builder.gd")
+const ROSTER_MANAGER_SCRIPT = preload("res://scripts/core/roster_manager.gd")
+const CONTRACT_MANAGER_SCRIPT = preload("res://scripts/core/contract_manager.gd")
+const DRAFT_MANAGER_SCRIPT = preload("res://scripts/core/draft_manager.gd")
+const CALENDAR_MANAGER_SCRIPT = preload("res://scripts/core/calendar_manager.gd")
 const START_SEASON_YEAR := 2026
 const CALENDAR_START_MONTH := 1
 const CALENDAR_START_DAY := 1
@@ -78,6 +82,8 @@ var players: Dictionary = {}
 
 # Array of GameData
 var schedule: Array = []
+var schedule_by_day: Dictionary = {}
+var date_info_cache: Dictionary = {}
 var recent_events: Array[String] = []
 var daily_team_bonuses: Dictionary = {}
 var last_offseason_report: Array[String] = []
@@ -104,6 +110,8 @@ func reset() -> void:
 	teams.clear()
 	players.clear()
 	schedule.clear()
+	schedule_by_day.clear()
+	date_info_cache.clear()
 	recent_events.clear()
 	daily_team_bonuses.clear()
 	last_offseason_report.clear()
@@ -222,170 +230,46 @@ func get_roster_ruleset() -> Dictionary:
 	return TEAM_BLUEPRINTS_SCRIPT.get_ruleset()
 
 func get_team_registered_player_count(team_id: String) -> int:
-	var team: TeamData = get_team(team_id)
-	if team == null:
-		return 0
-	return team.player_ids.size()
+	return ROSTER_MANAGER_SCRIPT.get_team_registered_player_count(self, team_id)
 
 func get_team_foreign_player_ids(team_id: String) -> Array[String]:
-	var result: Array[String] = []
-	var team: TeamData = get_team(team_id)
-	if team == null:
-		return result
-	for player_id in team.player_ids:
-		var player: PlayerData = get_player(str(player_id))
-		if player != null and bool(player.is_foreign):
-			result.append(str(player.id))
-	return result
+	return ROSTER_MANAGER_SCRIPT.get_team_foreign_player_ids(self, team_id)
 
 func get_team_active_player_ids(team_id: String) -> Array[String]:
-	var team: TeamData = get_team(team_id)
-	var active_ids: Array[String] = []
-	if team == null:
-		return active_ids
+	return ROSTER_MANAGER_SCRIPT.get_team_active_player_ids(self, team_id)
 
-	var seen: Dictionary = {}
-	for player_id in team.lineup_vs_r:
-		_append_unique_player_id(active_ids, seen, str(player_id))
-	for player_id in team.lineup_vs_l:
-		_append_unique_player_id(active_ids, seen, str(player_id))
-	for player_id in team.bench_ids:
-		_append_unique_player_id(active_ids, seen, str(player_id))
-	for player_id in team.rotation_ids:
-		_append_unique_player_id(active_ids, seen, str(player_id))
 
-	_append_unique_player_id(active_ids, seen, str(team.bullpen.get("closer", "")))
-	_append_unique_player_id(active_ids, seen, str(team.bullpen.get("long", "")))
-	for player_id in team.bullpen.get("setup", []):
-		_append_unique_player_id(active_ids, seen, str(player_id))
-	for player_id in team.bullpen.get("middle", []):
-		_append_unique_player_id(active_ids, seen, str(player_id))
+func get_team_active_pitcher_count(team_id: String) -> int:
+	var count: int = 0
+	for player_id in get_team_active_player_ids(team_id):
+		var player: PlayerData = get_player(str(player_id))
+		if player != null and player.is_pitcher():
+			count += 1
+	return count
 
-	return active_ids
+
+func get_team_active_fielder_count(team_id: String) -> int:
+	var count: int = 0
+	for player_id in get_team_active_player_ids(team_id):
+		var player: PlayerData = get_player(str(player_id))
+		if player != null and not player.is_pitcher():
+			count += 1
+	return count
 
 func get_team_roster_rule_summary(team_id: String) -> Dictionary:
-	var rules: Dictionary = get_roster_ruleset()
-	var team: TeamData = get_team(team_id)
-	if team == null:
-		return {
-			"ok": false,
-			"registered": 0,
-			"active": 0,
-			"foreign_signed": 0,
-			"foreign_active": 0,
-			"foreign_active_pitchers": 0,
-			"foreign_active_fielders": 0,
-			"warnings": ["チームデータが見つかりません。"]
-		}
-
-	var registered_count: int = get_team_registered_player_count(team_id)
-	var active_ids: Array[String] = get_team_active_player_ids(team_id)
-	var foreign_signed_ids: Array[String] = get_team_foreign_player_ids(team_id)
-	var foreign_active: int = 0
-	var foreign_active_pitchers: int = 0
-	var foreign_active_fielders: int = 0
-	for player_id in active_ids:
-		var player: PlayerData = get_player(str(player_id))
-		if player == null or not bool(player.is_foreign):
-			continue
-		foreign_active += 1
-		if player.is_pitcher():
-			foreign_active_pitchers += 1
-		else:
-			foreign_active_fielders += 1
-
-	var warnings: Array[String] = []
-	if registered_count > int(rules.get("registered_roster_max", 70)):
-		warnings.append("支配下人数が上限を超えています。")
-	if foreign_active > int(rules.get("foreign_active_max", 4)):
-		warnings.append("一軍外国人枠を超えています。")
-	if foreign_active_pitchers > int(rules.get("foreign_pitcher_active_max", 3)):
-		warnings.append("一軍外国人投手枠を超えています。")
-	if foreign_active_fielders > int(rules.get("foreign_fielder_active_max", 3)):
-		warnings.append("一軍外国人野手枠を超えています。")
-
-	return {
-		"ok": warnings.is_empty(),
-		"registered": registered_count,
-		"registered_target": int(rules.get("registered_roster_target", 68)),
-		"registered_max": int(rules.get("registered_roster_max", 70)),
-		"active": active_ids.size(),
-		"active_target": int(rules.get("active_roster_target", 29)),
-		"foreign_signed": foreign_signed_ids.size(),
-		"foreign_active": foreign_active,
-		"foreign_active_max": int(rules.get("foreign_active_max", 4)),
-		"foreign_active_pitchers": foreign_active_pitchers,
-		"foreign_pitcher_active_max": int(rules.get("foreign_pitcher_active_max", 3)),
-		"foreign_active_fielders": foreign_active_fielders,
-		"foreign_fielder_active_max": int(rules.get("foreign_fielder_active_max", 3)),
-		"warnings": warnings
-	}
+	return ROSTER_MANAGER_SCRIPT.get_team_roster_rule_summary(self, team_id)
 
 func get_controlled_team_player_management_summary() -> Dictionary:
-	var team: TeamData = get_controlled_team()
-	if team == null:
-		return {}
-
-	var active_count: int = 0
-	var farm_count: int = 0
-	var development_count: int = 0
-	var foreign_active_count: int = 0
-	var foreign_signed_count: int = 0
-
-	for player_id in team.player_ids:
-		var player: PlayerData = get_player(str(player_id))
-		if player == null:
-			continue
-		match str(player.roster_status):
-			"active":
-				active_count += 1
-			"development":
-				development_count += 1
-			_:
-				farm_count += 1
-		if bool(player.is_foreign):
-			foreign_signed_count += 1
-			if str(player.roster_status) == "active":
-				foreign_active_count += 1
-
-	var roster_rule_summary: Dictionary = get_team_roster_rule_summary(str(team.id))
-	return {
-		"team_name": team.name,
-		"active_count": active_count,
-		"farm_count": farm_count,
-		"development_count": development_count,
-		"foreign_signed_count": foreign_signed_count,
-		"foreign_active_count": foreign_active_count,
-		"roster_rule_summary": roster_rule_summary
-	}
+	return ROSTER_MANAGER_SCRIPT.get_controlled_team_player_management_summary(self)
 
 func set_controlled_player_roster_status(player_id: String, target_status: String) -> Dictionary:
-	var team: TeamData = get_controlled_team()
-	if team == null:
-		return {"ok": false, "message": "担当球団が未設定です。"}
-
-	var player: PlayerData = get_player(player_id)
-	if player == null or not team.player_ids.has(player_id):
-		return {"ok": false, "message": "担当球団の選手ではありません。"}
-
-	var normalized_status: String = str(target_status)
-	if normalized_status not in ["active", "farm", "development"]:
-		return {"ok": false, "message": "変更先の在籍状態が不正です。"}
-
-	if normalized_status == "development":
-		if str(player.registration_type) != "development":
-			return {"ok": false, "message": "支配下選手はそのまま育成契約に戻せません。"}
-		player.roster_status = "development"
-		return {"ok": true, "message": "%s を育成枠に設定しました。" % player.full_name}
-
-	if str(player.registration_type) == "development":
-		return {"ok": false, "message": "育成選手は先に支配下登録が必要です。"}
-
-	player.roster_status = normalized_status
-	var status_label: String = "一軍" if normalized_status == "active" else "二軍"
-	return {"ok": true, "message": "%s を%sに設定しました。" % [player.full_name, status_label]}
+	return ROSTER_MANAGER_SCRIPT.set_controlled_player_roster_status(self, player_id, target_status)
 
 func promote_controlled_development_player(player_id: String) -> Dictionary:
+	return ROSTER_MANAGER_SCRIPT.promote_controlled_development_player(self, player_id)
+
+
+func set_controlled_player_development_focus(player_id: String, focus_key: String) -> Dictionary:
 	var team: TeamData = get_controlled_team()
 	if team == null:
 		return {"ok": false, "message": "担当球団が未設定です。"}
@@ -393,18 +277,16 @@ func promote_controlled_development_player(player_id: String) -> Dictionary:
 	var player: PlayerData = get_player(player_id)
 	if player == null or not team.player_ids.has(player_id):
 		return {"ok": false, "message": "担当球団の選手ではありません。"}
-	if str(player.registration_type) != "development":
-		return {"ok": false, "message": "この選手はすでに支配下です。"}
 
-	var rules: Dictionary = get_roster_ruleset()
-	var registered_count: int = get_team_registered_player_count(str(team.id))
-	var registered_max: int = int(rules.get("registered_roster_max", 70))
-	if registered_count >= registered_max:
-		return {"ok": false, "message": "支配下上限に達しているため昇格できません。"}
+	var normalized_focus: String = str(focus_key)
+	if not player.get_available_development_focuses().has(normalized_focus):
+		return {"ok": false, "message": "この選手には設定できない育成方針です。"}
 
-	player.registration_type = "registered"
-	player.roster_status = "farm"
-	return {"ok": true, "message": "%s を支配下登録しました。" % player.full_name}
+	player.development_focus = normalized_focus
+	return {
+		"ok": true,
+		"message": "%s の育成方針を %s に変更しました。" % [player.full_name, player.get_development_focus_label()]
+	}
 
 func _append_unique_player_id(target: Array[String], seen: Dictionary, player_id: String) -> void:
 	if player_id == "" or seen.has(player_id):
@@ -422,6 +304,8 @@ func consume_pending_home_message() -> String:
 
 func _generate_schedule() -> void:
 	schedule.clear()
+	schedule_by_day.clear()
+	date_info_cache.clear()
 
 	var ids: Array[String] = []
 	for team_info in team_master:
@@ -697,13 +581,10 @@ func get_player(player_id: String):
 	return null
 
 func get_games_for_day(day: int) -> Array:
-	var result: Array = []
-
-	for g in schedule:
-		if int(g.day) == day:
-			result.append(g)
-
-	return result
+	var normalized_day: int = maxi(1, day)
+	if schedule_by_day.has(normalized_day):
+		return Array(schedule_by_day[normalized_day])
+	return []
 
 func get_next_game_day(from_day: int, team_id: String = "") -> int:
 	var start_day: int = maxi(1, from_day)
@@ -723,6 +604,8 @@ func get_date_label_for_day(day: int) -> String:
 
 func get_date_info_for_day(day: int) -> Dictionary:
 	var target_day: int = maxi(1, day)
+	if date_info_cache.has(target_day):
+		return Dictionary(date_info_cache[target_day])
 	var year: int = season_year
 	var month: int = CALENDAR_START_MONTH
 	var day_of_month: int = CALENDAR_START_DAY
@@ -734,7 +617,7 @@ func get_date_info_for_day(day: int) -> Dictionary:
 		day_of_month = int(next_date["day"])
 
 	var weekday_index: int = _get_weekday_index(year, month, day_of_month)
-	return {
+	var result := {
 		"year": year,
 		"month": month,
 		"day": day_of_month,
@@ -742,8 +625,11 @@ func get_date_info_for_day(day: int) -> Dictionary:
 		"weekday_name": WEEKDAY_NAMES[weekday_index],
 		"date_label": _build_date_label(year, month, day_of_month, weekday_index)
 	}
+	date_info_cache[target_day] = result
+	return Dictionary(result)
 
 func _normalize_schedule_metadata() -> void:
+	_rebuild_schedule_indexes()
 	for game_value in schedule:
 		var game: GameData = game_value
 		if game == null:
@@ -755,6 +641,18 @@ func _normalize_schedule_metadata() -> void:
 		game.weekday_index = int(date_info.get("weekday_index", 0))
 		game.weekday_name = str(date_info.get("weekday_name", ""))
 		game.date_label = str(date_info.get("date_label", ""))
+
+func _rebuild_schedule_indexes() -> void:
+	schedule_by_day.clear()
+	date_info_cache.clear()
+	for game_value in schedule:
+		var game: GameData = game_value
+		if game == null:
+			continue
+		var game_day: int = int(game.day)
+		if not schedule_by_day.has(game_day):
+			schedule_by_day[game_day] = []
+		schedule_by_day[game_day].append(game)
 
 func get_current_date_label() -> String:
 	return get_date_label_for_day(current_day)
@@ -847,63 +745,31 @@ func get_calendar_events_for_day(day: int) -> Array[Dictionary]:
 	return events
 
 func get_today_calendar_events() -> Array[Dictionary]:
-	return get_calendar_events_for_day(current_day)
+	return CALENDAR_MANAGER_SCRIPT.get_today_calendar_events(self)
 
 func get_upcoming_calendar_events(max_count: int = 5, from_day: int = -1) -> Array[Dictionary]:
-	var target_day: int = current_day if from_day <= 0 else from_day
-	var result: Array[Dictionary] = []
-	var seen_signatures: Dictionary = {}
-	for day in range(target_day + 1, get_last_day() + 1):
-		for event_data in get_calendar_events_for_day(day):
-			var event_type: String = str(event_data.get("type", ""))
-			var signature: String = event_type
-			if seen_signatures.has(signature):
-				continue
-			seen_signatures[signature] = true
-			result.append({
-				"day": day,
-				"date_label": get_date_label_for_day(day),
-				"type": event_type,
-				"label": str(event_data.get("label", "")),
-				"summary": str(event_data.get("summary", ""))
-			})
-			if result.size() >= max_count:
-				return result
-	return result
+	return CALENDAR_MANAGER_SCRIPT.get_upcoming_calendar_events(self, max_count, from_day)
 
 func is_contract_period(day: int = -1) -> bool:
-	var target_day: int = current_day if day <= 0 else day
-	return _calendar_event_exists(target_day, "contract_period")
+	return CALENDAR_MANAGER_SCRIPT.is_contract_period(self, day)
 
 func is_fa_period(day: int = -1) -> bool:
-	var target_day: int = current_day if day <= 0 else day
-	return _calendar_event_exists(target_day, "fa_period")
+	return CALENDAR_MANAGER_SCRIPT.is_fa_period(self, day)
 
 func is_sponsor_period(day: int = -1) -> bool:
-	var target_day: int = current_day if day <= 0 else day
-	return _calendar_event_exists(target_day, "sponsor_period")
+	return CALENDAR_MANAGER_SCRIPT.is_sponsor_period(self, day)
 
 func is_staff_review_period(day: int = -1) -> bool:
-	var target_day: int = current_day if day <= 0 else day
-	return _calendar_event_exists(target_day, "staff_review")
+	return CALENDAR_MANAGER_SCRIPT.is_staff_review_period(self, day)
 
 func is_draft_prep_period(day: int = -1) -> bool:
-	var target_day: int = current_day if day <= 0 else day
-	return _calendar_event_exists(target_day, "draft_prep")
+	return CALENDAR_MANAGER_SCRIPT.is_draft_prep_period(self, day)
 
 func is_draft_day(day: int = -1) -> bool:
-	var target_day: int = current_day if day <= 0 else day
-	return _calendar_event_exists(target_day, "draft_day")
+	return CALENDAR_MANAGER_SCRIPT.is_draft_day(self, day)
 
 func get_calendar_summary_text(day: int = -1) -> String:
-	var target_day: int = current_day if day <= 0 else day
-	var events: Array[Dictionary] = get_calendar_events_for_day(target_day)
-	if events.is_empty():
-		return "今日は大きな年間イベントはありません。"
-	var lines: Array[String] = []
-	for event_data in events:
-		lines.append("%s: %s" % [str(event_data.get("label", "")), str(event_data.get("summary", ""))])
-	return "\n".join(lines)
+	return CALENDAR_MANAGER_SCRIPT.get_calendar_summary_text(self, day)
 
 func _calendar_event_exists(day: int, event_type: String) -> bool:
 	for event_data in get_calendar_events_for_day(day):
@@ -1187,6 +1053,61 @@ func get_current_operation_log() -> Array[Dictionary]:
 	for entry in annual_operation_log.get(str(season_year), []):
 		result.append(Dictionary(entry))
 	return result
+
+func get_current_operation_overview() -> Dictionary:
+	var progress: Dictionary = get_current_operation_progress()
+	var labels: Dictionary = {
+		"draft": "ドラフト",
+		"contract": "契約更改",
+		"fa": "FA交渉",
+		"sponsor": "スポンサー",
+		"staff": "スタッフ整理",
+		"trade": "トレード"
+	}
+	var ordered_keys: Array[String] = ["draft", "contract", "fa", "sponsor", "staff", "trade"]
+	var pending_labels: Array[String] = []
+	var completed_labels: Array[String] = []
+	var recommended_now: Array[String] = []
+
+	for operation_key in ordered_keys:
+		var done: bool = bool(progress.get(operation_key, false))
+		var label: String = str(labels.get(operation_key, operation_key))
+		if done:
+			completed_labels.append(label)
+		else:
+			pending_labels.append(label)
+
+	if is_draft_prep_period() or is_draft_day():
+		if not bool(progress.get("draft", false)):
+			recommended_now.append("ドラフト準備")
+	if is_contract_period():
+		if not bool(progress.get("contract", false)):
+			recommended_now.append("契約更改")
+	if is_fa_period():
+		if not bool(progress.get("fa", false)):
+			recommended_now.append("FA交渉")
+	if is_sponsor_period():
+		if not bool(progress.get("sponsor", false)):
+			recommended_now.append("スポンサー営業")
+	if is_staff_review_period():
+		if not bool(progress.get("staff", false)):
+			recommended_now.append("スタッフ整理")
+	if recommended_now.is_empty() and not bool(progress.get("trade", false)):
+		recommended_now.append("トレード検討")
+
+	return {
+		"completed_count": completed_labels.size(),
+		"total_count": ordered_keys.size(),
+		"pending_labels": pending_labels,
+		"completed_labels": completed_labels,
+		"recommended_now": recommended_now
+	}
+
+func get_contract_fa_cycle_summary() -> Dictionary:
+	return CONTRACT_MANAGER_SCRIPT.get_contract_fa_cycle_summary(self)
+
+func get_year_cycle_summary() -> Dictionary:
+	return CALENDAR_MANAGER_SCRIPT.get_year_cycle_summary(self)
 
 func _ensure_operation_year_state(year: int) -> void:
 	var year_key: String = str(year)
@@ -1631,61 +1552,7 @@ func _append_milestone(milestones: Array[Dictionary], label: String, button_labe
 	})
 
 func get_next_calendar_milestone() -> Dictionary:
-	var opening_day: int = get_first_game_day()
-	var first_interleague_day: int = _find_calendar_day(INTERLEAGUE_START_MONTH, INTERLEAGUE_START_DAY)
-	var last_interleague_day: int = _find_calendar_day(INTERLEAGUE_END_MONTH, INTERLEAGUE_END_DAY)
-	var spring_camp_start_day: int = _find_calendar_day(SPRING_CAMP_START_MONTH, SPRING_CAMP_START_DAY)
-	var spring_camp_end_day: int = _find_calendar_day(SPRING_CAMP_END_MONTH, SPRING_CAMP_END_DAY)
-	var open_game_start_day: int = _find_calendar_day(OPEN_GAME_START_MONTH, OPEN_GAME_START_DAY)
-	var open_game_end_day: int = _find_calendar_day(OPEN_GAME_END_MONTH, OPEN_GAME_END_DAY)
-	var climax_first_start_day: int = _find_calendar_day(CLIMAX_FIRST_START_MONTH, CLIMAX_FIRST_START_DAY)
-	var climax_first_end_day: int = _find_calendar_day(CLIMAX_FIRST_END_MONTH, CLIMAX_FIRST_END_DAY)
-	var climax_final_start_day: int = _find_calendar_day(CLIMAX_FINAL_START_MONTH, CLIMAX_FINAL_START_DAY)
-	var climax_final_end_day: int = _find_calendar_day(CLIMAX_FINAL_END_MONTH, CLIMAX_FINAL_END_DAY)
-	var japan_series_start_day: int = _find_calendar_day(JAPAN_SERIES_START_MONTH, JAPAN_SERIES_START_DAY)
-	var japan_series_end_day: int = _find_calendar_day(JAPAN_SERIES_END_MONTH, JAPAN_SERIES_END_DAY)
-	var draft_prep_start_day: int = _find_calendar_day(DRAFT_PREP_START_MONTH, DRAFT_PREP_START_DAY)
-	var draft_day: int = _find_calendar_day(DRAFT_DAY_MONTH, DRAFT_DAY_DAY)
-	var contract_start_day: int = _find_calendar_day(CONTRACT_PERIOD_START_MONTH, CONTRACT_PERIOD_START_DAY)
-	var contract_end_day: int = _find_calendar_day(CONTRACT_PERIOD_END_MONTH, CONTRACT_PERIOD_END_DAY)
-	var fa_start_day: int = _find_calendar_day(FA_PERIOD_START_MONTH, FA_PERIOD_START_DAY)
-	var fa_end_day: int = _find_calendar_day(FA_PERIOD_END_MONTH, FA_PERIOD_END_DAY)
-	var sponsor_start_day: int = _find_calendar_day(SPONSOR_PERIOD_START_MONTH, SPONSOR_PERIOD_START_DAY)
-	var sponsor_end_day: int = _find_calendar_day(SPONSOR_PERIOD_END_MONTH, SPONSOR_PERIOD_END_DAY)
-	var staff_review_start_day: int = _find_calendar_day(STAFF_REVIEW_START_MONTH, STAFF_REVIEW_START_DAY)
-	var staff_review_end_day: int = _find_calendar_day(STAFF_REVIEW_END_MONTH, STAFF_REVIEW_END_DAY)
-
-	var milestones: Array[Dictionary] = []
-	_append_milestone(milestones, "春季キャンプ", "キャンプまで", "春季キャンプ開始", spring_camp_start_day)
-	_append_milestone(milestones, "キャンプ終了", "キャンプ終了まで", "春季キャンプ終了", spring_camp_end_day)
-	_append_milestone(milestones, "オープン戦", "オープン戦まで", "オープン戦開始", open_game_start_day)
-	_append_milestone(milestones, "オープン戦終了", "オープン戦終了まで", "オープン戦終了", open_game_end_day)
-	_append_milestone(milestones, "開幕", "開幕まで", "開幕", opening_day)
-	_append_milestone(milestones, "交流戦", "交流戦まで", "交流戦開始", first_interleague_day)
-	_append_milestone(milestones, "交流戦終了", "交流戦明けまで", "交流戦終了", last_interleague_day)
-	_append_milestone(milestones, "クライマックス開始", "CS開始まで", "クライマックス開始", climax_first_start_day)
-	_append_milestone(milestones, "クライマックス1st終了", "CS1st終了まで", "クライマックス1st終了", climax_first_end_day)
-	_append_milestone(milestones, "クライマックスFinal", "CS Finalまで", "クライマックスFinal開始", climax_final_start_day)
-	_append_milestone(milestones, "クライマックスFinal終了", "CS終了まで", "クライマックスFinal終了", climax_final_end_day)
-	_append_milestone(milestones, "日本シリーズ", "日本Sまで", "日本シリーズ開始", japan_series_start_day)
-	_append_milestone(milestones, "日本シリーズ終了", "日本S終了まで", "日本シリーズ終了", japan_series_end_day)
-	_append_milestone(milestones, "ドラフト準備", "ドラフト準備まで", "ドラフト準備開始", draft_prep_start_day)
-	_append_milestone(milestones, "ドラフト会議", "ドラフト会議まで", "ドラフト会議", draft_day)
-	_append_milestone(milestones, "契約更改", "契約更改まで", "契約更改開始", contract_start_day)
-	_append_milestone(milestones, "契約更改終了", "更改終了まで", "契約更改終了", contract_end_day)
-	_append_milestone(milestones, "FA交渉", "FA期間まで", "FA交渉開始", fa_start_day)
-	_append_milestone(milestones, "FA終了", "FA終了まで", "FA交渉終了", fa_end_day)
-	_append_milestone(milestones, "スポンサー更改", "スポンサー期まで", "スポンサー更改開始", sponsor_start_day)
-	_append_milestone(milestones, "スポンサー終了", "スポンサー終了まで", "スポンサー更改終了", sponsor_end_day)
-	_append_milestone(milestones, "スタッフ見直し", "スタッフ期まで", "スタッフ見直し開始", staff_review_start_day)
-	_append_milestone(milestones, "スタッフ見直し終了", "スタッフ期終了まで", "スタッフ見直し終了", staff_review_end_day)
-
-	for milestone in milestones:
-		var milestone_day: int = int(milestone.get("target_day", -1))
-		if milestone_day > current_day:
-			return milestone
-
-	return {"label": "年越し", "button_label": "年越しまで", "progress_label": "年越し", "target_day": get_last_day()}
+	return CALENDAR_MANAGER_SCRIPT.get_next_calendar_milestone(self)
 
 func _is_interleague_game(game: GameData) -> bool:
 	var away_league: String = _get_team_league_key(str(game.away_team_id))
@@ -1738,6 +1605,10 @@ func _run_offseason(previous_year: int, next_year: int) -> Array[String]:
 			continue
 		_apply_player_offseason(player)
 
+	var contract_fa_report: Array[String] = _resolve_contract_and_fa_cycle()
+	for report_line in contract_fa_report:
+		lines.append(report_line)
+
 	var salary_review_report: Array[String] = _apply_salary_reviews()
 	for report_line in salary_review_report:
 		lines.append(report_line)
@@ -1757,6 +1628,155 @@ func _run_offseason(previous_year: int, next_year: int) -> Array[String]:
 
 	lines.append("オフシーズン処理が完了しました。")
 	return lines
+
+func _resolve_contract_and_fa_cycle() -> Array[String]:
+	var lines: Array[String] = []
+	var expiring_players: Array[Dictionary] = []
+
+	for team_id in all_team_ids():
+		var team: TeamData = get_team(team_id)
+		if team == null:
+			continue
+		for player_id in team.player_ids:
+			var player: PlayerData = get_player(str(player_id))
+			if player == null:
+				continue
+			if int(player.contract_years_left) <= 0:
+				expiring_players.append({
+					"player_id": str(player.id),
+					"team_id": str(team.id),
+					"team_name": team.name
+				})
+
+	if expiring_players.is_empty():
+		lines.append("契約満了選手はいませんでした。")
+		return lines
+
+	var auto_renew_count: int = 0
+	var transfer_count: int = 0
+	var fallback_count: int = 0
+	var controlled_lines: Array[String] = []
+
+	for entry in expiring_players:
+		var player: PlayerData = get_player(str(entry.get("player_id", "")))
+		var current_team: TeamData = get_team(str(entry.get("team_id", "")))
+		if player == null or current_team == null:
+			continue
+
+		var renewal_cost: int = maxi(int(player.salary), int(player.desired_salary))
+		var same_team_ok: bool = int(current_team.budget) >= int(round(float(renewal_cost) * 0.35))
+		var prefers_stay: bool = int(player.fa_interest) <= 45
+
+		if same_team_ok and prefers_stay:
+			current_team.budget = maxi(0, int(current_team.budget) - int(round(float(renewal_cost) * 0.35)))
+			player.salary = renewal_cost
+			player.contract_years_left = 1
+			player.desired_salary = int(round(float(player.salary) * 1.08))
+			player.fa_interest = clampi(int(player.fa_interest) - 8, 0, 100)
+			auto_renew_count += 1
+			if str(current_team.id) == controlled_team_id:
+				controlled_lines.append("残留: %s と単年契約で再契約" % player.full_name)
+			continue
+
+		var destination_team: TeamData = _find_best_fa_destination(player, str(current_team.id))
+		if destination_team == null:
+			player.contract_years_left = 1
+			player.salary = maxi(240, int(round(float(player.salary) * 0.92)))
+			player.desired_salary = int(round(float(player.salary) * 1.05))
+			player.fa_interest = clampi(int(player.fa_interest) - 4, 0, 100)
+			fallback_count += 1
+			if str(current_team.id) == controlled_team_id:
+				controlled_lines.append("残留: %s は市場で決まらず残留" % player.full_name)
+			continue
+
+		var signing_cost: int = _calc_simple_fa_signing_cost(player)
+		destination_team.budget = maxi(0, int(destination_team.budget) - signing_cost)
+		player.salary = maxi(int(player.salary), int(player.desired_salary))
+		player.contract_years_left = 2
+		player.desired_salary = int(round(float(player.salary) * 1.1))
+		player.fa_interest = clampi(int(player.fa_interest) - 18, 0, 100)
+		player.morale = clampi(int(player.morale) + 8, 0, 100)
+
+		_remove_player_from_team(current_team, str(player.id))
+		_register_new_player(destination_team, player)
+		_rebuild_team_competitive_structures(current_team)
+		_rebuild_team_competitive_structures(destination_team)
+		transfer_count += 1
+
+		if str(current_team.id) == controlled_team_id:
+			controlled_lines.append("流出: %s → %s" % [player.full_name, destination_team.name])
+		elif str(destination_team.id) == controlled_team_id:
+			controlled_lines.append("加入: %s ← %s" % [player.full_name, current_team.name])
+
+	lines.append("契約更改・FA整理: 自動残留 %d / 移籍 %d / 残留保留 %d" % [
+		auto_renew_count,
+		transfer_count,
+		fallback_count
+	])
+	if controlled_lines.is_empty():
+		lines.append("担当球団の契約更改・FA異動はありませんでした。")
+	else:
+		for detail in controlled_lines:
+			lines.append(detail)
+
+	return lines
+
+func _calc_simple_fa_signing_cost(player: PlayerData) -> int:
+	return int(player.desired_salary) + maxi(600, int(player.overall) * 10)
+
+func _find_best_fa_destination(player: PlayerData, previous_team_id: String) -> TeamData:
+	var best_team: TeamData = null
+	var best_score: float = -1000000.0
+	var signing_cost: int = _calc_simple_fa_signing_cost(player)
+
+	for team_id in all_team_ids():
+		var team: TeamData = get_team(team_id)
+		if team == null:
+			continue
+		if int(team.budget) < signing_cost:
+			continue
+
+		var roster_space_score: float = 8.0 if team.player_ids.size() < 68 else 0.0
+		var budget_score: float = float(int(team.budget)) / 1500.0
+		var popularity_score: float = float(int(team.fan_support)) / 5.0
+		var need_score: float = _estimate_team_need_score(team, player)
+		var loyalty_score: float = 0.0
+		if str(team.id) == previous_team_id:
+			loyalty_score = 12.0 - float(int(player.fa_interest)) / 5.0
+		else:
+			loyalty_score = float(int(player.fa_interest)) / 6.0
+
+		var score: float = budget_score + popularity_score + roster_space_score + need_score + loyalty_score
+		if score > best_score:
+			best_score = score
+			best_team = team
+
+	return best_team
+
+func _estimate_team_need_score(team: TeamData, player: PlayerData) -> float:
+	if team == null or player == null:
+		return 0.0
+	if player.is_pitcher():
+		if player.role == "starter":
+			return 10.0 if team.rotation_ids.size() < 6 else 4.0
+		if player.role == "closer":
+			return 10.0 if str(team.bullpen.get("closer", "")) == "" else 3.0
+		var middle_count: int = Array(team.bullpen.get("middle", [])).size()
+		return 8.0 if middle_count < 3 else 3.0
+
+	var lineup_count: int = 0
+	for player_id in team.lineup_vs_r:
+		if str(player_id) != "":
+			lineup_count += 1
+	if lineup_count < 9:
+		return 10.0
+
+	var same_position_count: int = 0
+	for player_id in team.player_ids:
+		var team_player: PlayerData = get_player(str(player_id))
+		if team_player != null and str(team_player.primary_position) == str(player.primary_position):
+			same_position_count += 1
+	return 8.0 if same_position_count <= 1 else 3.0
 
 func _apply_salary_reviews() -> Array[String]:
 	var lines: Array[String] = []
@@ -1990,148 +2010,16 @@ func pitch_team_sponsor(team_id: String) -> Dictionary:
 	return sponsor_result
 
 func get_controlled_team_contract_summary() -> Dictionary:
-	var team: TeamData = get_controlled_team()
-	if team == null:
-		return {}
-	var expiring_players: Array[PlayerData] = []
-	var fa_watch_players: Array[PlayerData] = []
-	for player_id in team.player_ids:
-		var player: PlayerData = get_player(str(player_id))
-		if player == null:
-			continue
-		if int(player.contract_years_left) <= 1:
-			expiring_players.append(player)
-		if int(player.fa_interest) >= 65:
-			fa_watch_players.append(player)
-	expiring_players.sort_custom(func(a: PlayerData, b: PlayerData) -> bool:
-		return int(a.overall) > int(b.overall)
-	)
-	fa_watch_players.sort_custom(func(a: PlayerData, b: PlayerData) -> bool:
-		return int(a.fa_interest) > int(b.fa_interest)
-	)
-	return {
-		"expiring_count": expiring_players.size(),
-		"expiring_players": expiring_players,
-		"fa_watch_players": fa_watch_players
-	}
+	return CONTRACT_MANAGER_SCRIPT.get_controlled_team_contract_summary(self)
 
 func renew_controlled_player_contract(player_id: String, years: int = 2) -> Dictionary:
-	var team: TeamData = get_controlled_team()
-	if team == null:
-		return {"ok": false, "message": "担当球団が見つかりません。"}
-	var player: PlayerData = get_player(player_id)
-	if player == null or not team.player_ids.has(player_id):
-		return {"ok": false, "message": "対象選手が担当球団に所属していません。"}
-	var requested_salary: int = maxi(int(player.salary), int(player.desired_salary))
-	var signing_bonus: int = int(round(float(requested_salary) * 0.6)) + years * 250
-	if int(team.budget) < signing_bonus:
-		return {"ok": false, "message": "予算が不足しています。必要額: %d" % signing_bonus}
-	team.budget = int(team.budget) - signing_bonus
-	player.salary = requested_salary
-	player.contract_years_left = clampi(int(player.contract_years_left) + years, 1, 5)
-	player.desired_salary = int(round(float(player.salary) * 1.08))
-	player.fa_interest = clampi(int(player.fa_interest) - 12, 0, 100)
-	var renewal_result := {
-		"ok": true,
-		"message": "%sと%d年契約を結びました。予算 -%d / 年俸 %d" % [player.full_name, years, signing_bonus, int(player.salary)]
-	}
-	_mark_operation_completed("contract", "契約更改", str(renewal_result["message"]))
-	return renewal_result
+	return CONTRACT_MANAGER_SCRIPT.renew_controlled_player_contract(self, player_id, years)
 
 func get_fa_candidate_list() -> Array[Dictionary]:
-	var candidates: Array[Dictionary] = []
-	for team_id in teams.keys():
-		var team: TeamData = teams[team_id]
-		if team == null:
-			continue
-		for player_id in team.player_ids:
-			var player: PlayerData = get_player(str(player_id))
-			if player == null:
-				continue
-			var contract_left: int = int(player.contract_years_left)
-			var fa_interest_value: int = int(player.fa_interest)
-			if contract_left > 1 and fa_interest_value < 70:
-				continue
-			candidates.append({
-				"player_id": str(player.id),
-				"player_name": player.full_name,
-				"team_id": str(team.id),
-				"team_name": team.name,
-				"role": player.role,
-				"position": player.primary_position,
-				"overall": int(player.overall),
-				"age": int(player.age),
-				"salary": int(player.salary),
-				"desired_salary": int(player.desired_salary),
-				"contract_years_left": contract_left,
-				"fa_interest": fa_interest_value,
-				"is_controlled_team": str(team.id) == controlled_team_id
-			})
-	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var a_priority: int = 0 if int(a.get("contract_years_left", 9)) <= 1 else 1
-		var b_priority: int = 0 if int(b.get("contract_years_left", 9)) <= 1 else 1
-		if a_priority != b_priority:
-			return a_priority < b_priority
-		if int(a.get("overall", 0)) != int(b.get("overall", 0)):
-			return int(a.get("overall", 0)) > int(b.get("overall", 0))
-		return int(a.get("fa_interest", 0)) > int(b.get("fa_interest", 0))
-	)
-	return candidates
+	return CONTRACT_MANAGER_SCRIPT.get_fa_candidate_list(self)
 
 func negotiate_controlled_team_fa(player_id: String, years: int = 3) -> Dictionary:
-	if not is_fa_period():
-		return {"ok": false, "message": "FA交渉はFA期間のみ行えます。"}
-	var team: TeamData = get_controlled_team()
-	if team == null:
-		return {"ok": false, "message": "担当球団が設定されていません。"}
-	var player: PlayerData = get_player(player_id)
-	if player == null:
-		return {"ok": false, "message": "対象選手が見つかりません。"}
-
-	var current_team: TeamData = _find_player_team(str(player.id))
-	if current_team != null and str(current_team.id) == str(team.id):
-		return {"ok": false, "message": "自球団選手は契約更改で対応してください。"}
-
-	var signing_cost: int = int(player.desired_salary) + years * 400 + int(player.fa_interest) * 10
-	if int(team.budget) < signing_cost:
-		return {"ok": false, "message": "予算が不足しています。必要額: %d" % signing_cost}
-
-	team.budget -= signing_cost
-	if current_team != null:
-		current_team.player_ids.erase(str(player.id))
-		current_team.lineup_vs_r.erase(str(player.id))
-		current_team.lineup_vs_l.erase(str(player.id))
-		current_team.bench_ids.erase(str(player.id))
-		current_team.rotation_ids.erase(str(player.id))
-		if str(current_team.bullpen.get("closer", "")) == str(player.id):
-			current_team.bullpen["closer"] = ""
-		if str(current_team.bullpen.get("long", "")) == str(player.id):
-			current_team.bullpen["long"] = ""
-		for key in ["setup", "middle"]:
-			var values: Array = current_team.bullpen.get(key, [])
-			values.erase(str(player.id))
-			current_team.bullpen[key] = values
-		_rebuild_team_competitive_structures(current_team)
-
-	player.salary = int(player.desired_salary)
-	player.contract_years_left = clampi(years, 1, 5)
-	player.desired_salary = int(round(float(player.salary) * 1.1))
-	player.fa_interest = clampi(int(player.fa_interest) - 25, 0, 100)
-	player.morale = clampi(int(player.morale) + 12, 0, 100)
-
-	if not team.player_ids.has(str(player.id)):
-		team.player_ids.append(str(player.id))
-	_rebuild_team_competitive_structures(team)
-
-	var fa_result := {
-		"ok": true,
-		"message": "%sと%d年契約を結びました。予算 -%d / 年俸 %d" % [player.full_name, years, signing_cost, int(player.salary)],
-		"player_name": player.full_name,
-		"years": years,
-		"cost": signing_cost
-	}
-	_mark_operation_completed("fa", "FA交渉", str(fa_result["message"]))
-	return fa_result
+	return CONTRACT_MANAGER_SCRIPT.negotiate_controlled_team_fa(self, player_id, years)
 
 func get_controlled_team_trade_proposals() -> Array[Dictionary]:
 	var team: TeamData = get_controlled_team()
@@ -2219,115 +2107,16 @@ func execute_controlled_team_trade(give_player_id: String, take_player_id: Strin
 	return trade_result
 
 func get_controlled_team_draft_prospects() -> Array[Dictionary]:
-	var team: TeamData = get_controlled_team()
-	if team == null:
-		return []
-	return _build_draft_prospect_list(team)
+	return DRAFT_MANAGER_SCRIPT.get_controlled_team_draft_prospects(self)
 
 func toggle_controlled_draft_focus(prospect_id: String) -> Dictionary:
-	if not is_draft_prep_period() and not is_draft_day():
-		return {"ok": false, "message": "注目候補の整理はドラフト準備期間とドラフト会議日に行えます。"}
-	var team: TeamData = get_controlled_team()
-	if team == null:
-		return {"ok": false, "message": "担当球団が設定されていません。"}
-	if prospect_id == "":
-		return {"ok": false, "message": "候補IDが不正です。"}
-	if team.draft_focus_ids.has(prospect_id):
-		team.draft_focus_ids.erase(prospect_id)
-		return {"ok": true, "message": "注目候補から外しました。"}
-	if team.draft_focus_ids.size() >= 5:
-		return {"ok": false, "message": "注目候補は5人までです。"}
-	team.draft_focus_ids.append(prospect_id)
-	return {"ok": true, "message": "注目候補に追加しました。"}
+	return DRAFT_MANAGER_SCRIPT.toggle_controlled_draft_focus(self, prospect_id)
 
 func _build_draft_prospect_list(team: TeamData) -> Array[Dictionary]:
-	var scouting_level: int = int(team.facilities.get("scouting", 1))
-	var scout_count: int = int(team.staff.get("scouts", 0))
-	var quality_bonus: int = scouting_level * 3 + scout_count * 2
-	var grade_labels: Array[String] = ["C", "C+", "B", "B+", "A-", "A"]
-	var family_names: Array[String] = ["佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村"]
-	var given_names: Array[String] = ["一樹", "健太", "隼人", "悠斗", "大雅", "直樹", "優真", "蓮"]
-	var role_pool: Array[String] = ["高校生投手", "大学生投手", "社会人投手", "高校生内野手", "大学生外野手", "社会人捕手", "高校生外野手", "大学生内野手"]
-	var style_pool: Array[String] = ["速球派", "変化球型", "守備型", "長打型", "巧打型", "万能型", "強肩型", "粘り強い"]
-	var prospects: Array[Dictionary] = []
-
-	for i in range(8):
-		var prospect_id: String = "%d_draft_%02d" % [season_year, i + 1]
-		var upside: int = 54 + i * 4 + quality_bonus
-		var grade_index: int = mini(grade_labels.size() - 1, int(floor(float(upside - 50) / 8.0)))
-		prospects.append({
-			"prospect_id": prospect_id,
-			"name": "%s %s" % [family_names[i % family_names.size()], given_names[i % given_names.size()]],
-			"role": role_pool[i % role_pool.size()],
-			"grade": grade_labels[grade_index],
-			"upside": upside,
-			"style": style_pool[(i + scouting_level + scout_count) % style_pool.size()],
-			"note": "将来性 %d / スカウト評価 %s" % [upside, grade_labels[grade_index]],
-			"focused": team.draft_focus_ids.has(prospect_id)
-		})
-	return prospects
+	return DRAFT_MANAGER_SCRIPT._build_draft_prospect_list(self, team)
 
 func run_controlled_team_draft() -> Dictionary:
-	if not is_draft_day():
-		return {"ok": false, "message": "ドラフト指名はドラフト会議当日のみ行えます。"}
-	var team: TeamData = get_controlled_team()
-	if team == null:
-		return {"ok": false, "message": "担当球団が設定されていません。"}
-	if int(team.last_draft_year) == int(season_year):
-		return {"ok": false, "message": "今年のドラフト指名はすでに完了しています。"}
-
-	var prospects: Array[Dictionary] = _build_draft_prospect_list(team)
-	if prospects.is_empty():
-		return {"ok": false, "message": "指名できる候補がいません。"}
-
-	var chosen: Dictionary = {}
-	for prospect in prospects:
-		if bool(prospect.get("focused", false)):
-			chosen = prospect
-			break
-	if chosen.is_empty():
-		chosen = prospects[0]
-
-	var role_text: String = str(chosen.get("role", "高校生内野手"))
-	var player: PlayerData
-	if role_text.find("投手") >= 0:
-		player = _build_replacement_pitcher(team.id, "starter")
-	elif role_text.find("捕手") >= 0:
-		player = _build_replacement_fielder(team.id, "C")
-	elif role_text.find("外野手") >= 0:
-		player = _build_replacement_fielder(team.id, "CF")
-	else:
-		player = _build_replacement_fielder(team.id, "SS")
-
-	player.full_name = str(chosen.get("name", player.full_name))
-	player.age = 18 if role_text.find("高校生") >= 0 else 22 if role_text.find("大学生") >= 0 else 24
-	player.years_pro = 1
-	player.contract_years_left = 3
-	player.salary = clampi(450 + int(chosen.get("upside", 60)) * 4, 450, 2200)
-	player.desired_salary = player.salary
-	player.fa_interest = 35
-	player.potential = clampi(int(chosen.get("upside", 60)) + 8, 50, 95)
-	player.morale = 65
-	player.condition = 60
-	player.overall = clampi(maxi(int(player.overall), int(chosen.get("upside", 60)) - 8), 35, 90)
-	player.traits = [str(chosen.get("style", ""))]
-
-	_register_new_player(team, player)
-	_rebuild_team_competitive_structures(team)
-	team.last_draft_year = season_year
-	team.last_draft_result_names = [player.full_name]
-	team.draft_focus_ids.clear()
-
-	var draft_result := {
-		"ok": true,
-		"message": "ドラフトで %s を指名しました。" % player.full_name,
-		"player_name": player.full_name,
-		"role": role_text,
-		"overall": int(player.overall),
-		"potential": int(player.potential)
-	}
-	_mark_operation_completed("draft", "ドラフト会議", str(draft_result["message"]))
-	return draft_result
+	return DRAFT_MANAGER_SCRIPT.run_controlled_team_draft(self)
 
 
 func _apply_player_offseason(player: PlayerData) -> void:
@@ -2365,26 +2154,43 @@ func _apply_player_offseason(player: PlayerData) -> void:
 			player.fa_interest = clampi(int(player.fa_interest) + 4, 0, 100)
 
 	if player.is_pitcher():
-		_apply_rating_delta(player, "velocity", growth_budget)
-		_apply_rating_delta(player, "control", growth_budget)
-		_apply_rating_delta(player, "stamina", 1 if player.role == "starter" and growth_budget > 0 else 0)
-		_apply_rating_delta(player, "break", growth_budget)
-		_apply_rating_delta(player, "k_rate", growth_budget)
+		_apply_pitcher_offseason_growth(player, growth_budget)
 		_apply_rating_delta(player, "composure", 1 if player.age >= 27 else 0)
 	else:
-		_apply_rating_delta(player, "contact", growth_budget)
-		_apply_rating_delta(player, "power", growth_budget)
-		_apply_rating_delta(player, "eye", growth_budget)
-		_apply_rating_delta(player, "speed", -1 if player.age >= 31 else growth_budget)
-		_apply_rating_delta(player, "fielding", 1 if player.age <= 30 and growth_budget >= 0 else 0)
-		_apply_rating_delta(player, "arm", 0)
-		_apply_rating_delta(player, "catching", 0)
+		_apply_fielder_offseason_growth(player, growth_budget)
 
 	player.overall = clampi(player.calc_overall(), 1, 99)
 
 func _apply_rating_delta(player: PlayerData, rating_key: String, delta: int) -> void:
 	var current_value: int = int(player.ratings.get(rating_key, 50))
 	player.ratings[rating_key] = clampi(current_value + delta, 1, 99)
+
+
+func _apply_pitcher_offseason_growth(player: PlayerData, growth_budget: int) -> void:
+	var focus_bonus: int = 1 if growth_budget >= 0 else 0
+	var focus_key: String = str(player.development_focus)
+	var starter_bonus: int = 1 if player.role == "starter" and growth_budget > 0 else 0
+
+	_apply_rating_delta(player, "velocity", growth_budget + (focus_bonus if focus_key == "velocity" else 0))
+	_apply_rating_delta(player, "control", growth_budget + (focus_bonus if focus_key == "control" else 0))
+	_apply_rating_delta(player, "stamina", starter_bonus + (focus_bonus if focus_key == "stamina" else 0))
+	_apply_rating_delta(player, "break", growth_budget + (focus_bonus if focus_key == "breaking" else 0))
+	_apply_rating_delta(player, "k_rate", growth_budget + (focus_bonus if focus_key == "breaking" else 0))
+
+
+func _apply_fielder_offseason_growth(player: PlayerData, growth_budget: int) -> void:
+	var focus_bonus: int = 1 if growth_budget >= 0 else 0
+	var focus_key: String = str(player.development_focus)
+	var speed_delta: int = -1 if player.age >= 31 else growth_budget
+	var defense_delta: int = 1 if player.age <= 30 and growth_budget >= 0 else 0
+
+	_apply_rating_delta(player, "contact", growth_budget + (focus_bonus if focus_key == "contact" else 0))
+	_apply_rating_delta(player, "power", growth_budget + (focus_bonus if focus_key == "power" else 0))
+	_apply_rating_delta(player, "eye", growth_budget + (focus_bonus if focus_key == "discipline" else 0))
+	_apply_rating_delta(player, "speed", speed_delta + (focus_bonus if focus_key == "speed" else 0))
+	_apply_rating_delta(player, "fielding", defense_delta + (focus_bonus if focus_key == "defense" else 0))
+	_apply_rating_delta(player, "arm", focus_bonus if focus_key == "defense" else 0)
+	_apply_rating_delta(player, "catching", focus_bonus if focus_key == "defense" and player.primary_position == "C" else 0)
 
 func _process_retirements_and_replacements() -> Array[String]:
 	var lines: Array[String] = []

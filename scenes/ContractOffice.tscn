@@ -45,45 +45,127 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = ""
 
-[node name="FAMarketButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+[node name="TabButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OverviewTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="RenewalTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="FATabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
 layout_mode = 2
 text = ""
 
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="OverviewVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SummaryGrid" type="GridContainer" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+
+[node name="ContractCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox/SummaryGrid"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ContractTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox/SummaryGrid/ContractCard"]
+layout_mode = 2
+text = ""
+
+[node name="ContractDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox/SummaryGrid/ContractCard"]
+custom_minimum_size = Vector2(0, 112)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="FACard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox/SummaryGrid"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FATitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox/SummaryGrid/FACard"]
+layout_mode = 2
+text = ""
+
+[node name="FADetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox/SummaryGrid/FACard"]
+custom_minimum_size = Vector2(0, 112)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="StatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="RenewalVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RenewalTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/RenewalVBox"]
+layout_mode = 2
+text = ""
+
+[node name="RenewalDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/RenewalVBox"]
+custom_minimum_size = Vector2(0, 156)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="RenewalButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/RenewalVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 44)
+text = ""
+
+[node name="RenewalNoteLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/RenewalVBox"]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="ContractDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 140)
+[node name="FAVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MarketTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/FAVBox"]
+layout_mode = 2
+text = ""
+
+[node name="MarketDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/FAVBox"]
+custom_minimum_size = Vector2(0, 156)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="ContractButtonsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="ContractPlayer1Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContractButtonsVBox"]
+[node name="FAMarketButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/FAVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 44)
 text = ""
 
-[node name="ContractPlayer2Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContractButtonsVBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-
-[node name="ContractPlayer3Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContractButtonsVBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-
-[node name="StatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 64)
+[node name="FANoteLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/FAVBox"]
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""

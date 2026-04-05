@@ -45,14 +45,14 @@ layout_mode = 2
 text = ""
 
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
 [node name="DetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 100)
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -83,7 +83,7 @@ size_flags_horizontal = 3
 text = ""
 
 [node name="StatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 64)
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""

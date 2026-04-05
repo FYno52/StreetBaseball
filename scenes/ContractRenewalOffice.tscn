@@ -1,15 +1,15 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scripts/fa_market.gd" id="1_fa_market"]
+[ext_resource type="Script" path="res://scripts/contract_renewal_office.gd" id="1_contract_renewal"]
 
-[node name="FAMarket" type="Control"]
+[node name="ContractRenewalOffice" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_fa_market")
+script = ExtResource("1_contract_renewal")
 
 [node name="RootScroll" type="ScrollContainer" parent="."]
 layout_mode = 1
@@ -52,50 +52,34 @@ size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="SummaryTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="SummaryDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 56)
+[node name="ContractDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="ListTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="ListDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 220)
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="ActionButtonsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="ContractButtonsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Action1Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ActionButtonsVBox"]
+[node name="ContractPlayer1Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContractButtonsVBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = ""
 
-[node name="Action2Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ActionButtonsVBox"]
+[node name="ContractPlayer2Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContractButtonsVBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = ""
 
-[node name="Action3Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ActionButtonsVBox"]
+[node name="ContractPlayer3Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContractButtonsVBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = ""
 
-[node name="NoteTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="NoteDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 56)
+[node name="StatusLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""

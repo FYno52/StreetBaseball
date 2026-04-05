@@ -68,6 +68,10 @@ text = ""
 layout_mode = 2
 text = ""
 
+[node name="RecordRoomButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="ProgressCard" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -137,7 +141,7 @@ layout_mode = 2
 text = ""
 
 [node name="SeasonStatusDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/SeasonStatusCard"]
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -153,7 +157,7 @@ layout_mode = 2
 text = ""
 
 [node name="FocusTeamDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/FocusTeamCard"]
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -169,7 +173,7 @@ layout_mode = 2
 text = ""
 
 [node name="TodayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/TodayCard"]
-custom_minimum_size = Vector2(0, 160)
+custom_minimum_size = Vector2(0, 116)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -185,7 +189,7 @@ layout_mode = 2
 text = ""
 
 [node name="YesterdayDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/SummaryGrid/YesterdayCard"]
-custom_minimum_size = Vector2(0, 160)
+custom_minimum_size = Vector2(0, 116)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -201,12 +205,24 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
+[node name="LeftTabButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StandingsTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/LeftTabButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="LeadersTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/LeftTabButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="DigestTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
 layout_mode = 2
 text = ""
 
 [node name="DigestDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
-custom_minimum_size = Vector2(0, 140)
+custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -217,14 +233,14 @@ layout_mode = 2
 text = ""
 
 [node name="BattingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
-custom_minimum_size = Vector2(0, 200)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
 [node name="PitchingLeadersLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox"]
-custom_minimum_size = Vector2(0, 200)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -240,7 +256,7 @@ layout_mode = 2
 text = ""
 
 [node name="EventDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
-custom_minimum_size = Vector2(0, 160)
+custom_minimum_size = Vector2(0, 116)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
@@ -251,7 +267,7 @@ layout_mode = 2
 text = ""
 
 [node name="NoteDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox"]
-custom_minimum_size = Vector2(0, 140)
+custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""

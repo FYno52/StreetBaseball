@@ -66,6 +66,7 @@ func _build_player_from_definition(team_id: String, index: int, data: Dictionary
 	player.throws = str(data.get("throws", "R"))
 	player.bats = str(data.get("bats", "R"))
 	player.is_foreign = bool(data.get("foreign", false))
+	player.nationality = "海外" if player.is_foreign else "日本"
 	player.registration_type = "registered"
 	player.roster_status = "farm"
 	player.age = int(data.get("age", 25))
@@ -73,6 +74,11 @@ func _build_player_from_definition(team_id: String, index: int, data: Dictionary
 	player.potential = int(data.get("potential", player.overall + 5))
 	player.salary = int(data.get("salary", 3000))
 	player.years_pro = maxi(1, player.age - 18)
+	player.durability = 55 + int((player.overall - 50) * 0.3)
+	player.work_ethic = 45 + (index % 20)
+	player.intelligence = 45 + ((index * 2) % 20)
+	player.leadership = 40 + ((index * 3) % 25)
+	player.adaptability = 45 + ((index * 4) % 20)
 	player.contract_years_left = 2 if player.is_foreign else 3
 	player.desired_salary = int(round(float(player.salary) * 1.05))
 	player.fa_interest = 62 if player.is_foreign else 45
@@ -80,6 +86,8 @@ func _build_player_from_definition(team_id: String, index: int, data: Dictionary
 	for trait_name in data.get("traits", []):
 		player.traits.append(str(trait_name))
 	_assign_rating_profile(player, str(data.get("archetype", "")))
+	_assign_position_profile(player)
+	_assign_special_abilities(player)
 	player.overall = player.calc_overall()
 	return player
 
@@ -210,6 +218,7 @@ func _assign_rating_profile(player, archetype: String) -> void:
 		player.ratings["control"] = 50 + int((player.overall - 55) * 0.8)
 		player.ratings["stamina"] = 68 if str(player.role) == "starter" else 42
 		player.ratings["break"] = 50 + int((player.overall - 55) * 0.9)
+		player.ratings["movement"] = 50 + int((player.overall - 55) * 0.8)
 		player.ratings["k_rate"] = 52 + int((player.overall - 55) * 0.9)
 		player.ratings["composure"] = 50 + int((player.overall - 55) * 0.7)
 		player.pitch_types.clear()
@@ -224,8 +233,10 @@ func _assign_rating_profile(player, archetype: String) -> void:
 		return
 
 	player.ratings["contact"] = 48 + int((player.overall - 55) * 0.9)
+	player.ratings["gap"] = 46 + int((player.overall - 55) * 0.8)
 	player.ratings["power"] = 45 + int((player.overall - 55) * 0.8)
 	player.ratings["eye"] = 46 + int((player.overall - 55) * 0.7)
+	player.ratings["avoid_k"] = 48 + int((player.overall - 55) * 0.7)
 	player.ratings["speed"] = 44 + int((player.overall - 55) * 0.7)
 	player.ratings["fielding"] = 48 + int((player.overall - 55) * 0.8)
 	player.ratings["arm"] = 46 + int((player.overall - 55) * 0.6)
@@ -238,6 +249,99 @@ func _assign_rating_profile(player, archetype: String) -> void:
 		player.ratings["speed"] += 6
 	elif archetype == "1B" or archetype == "DH":
 		player.ratings["power"] += 10
+
+
+func _assign_position_profile(player) -> void:
+	for position_key in PLAYER_DATA_SCRIPT.POSITION_KEYS:
+		player.position_ratings[position_key] = 5
+
+	if player.is_pitcher():
+		player.position_ratings["P"] = 82 if str(player.role) == "starter" else 76
+		player.position_ratings["DH"] = 10
+		return
+
+	var primary_key: String = str(player.primary_position)
+	player.position_ratings[primary_key] = _get_primary_position_rating(player, primary_key)
+	for secondary_key in player.secondary_positions:
+		var resolved_key: String = str(secondary_key)
+		player.position_ratings[resolved_key] = maxi(int(player.position_ratings.get(resolved_key, 0)), int(player.position_ratings.get(primary_key, 70)) - 15)
+
+	if primary_key in ["LF", "CF", "RF"]:
+		for outfield_key in ["LF", "CF", "RF"]:
+			player.position_ratings[outfield_key] = maxi(int(player.position_ratings.get(outfield_key, 0)), int(player.position_ratings.get(primary_key, 0)) - (0 if outfield_key == primary_key else 10))
+	if primary_key in ["2B", "3B", "SS"]:
+		for infield_key in ["2B", "3B", "SS"]:
+			player.position_ratings[infield_key] = maxi(int(player.position_ratings.get(infield_key, 0)), int(player.position_ratings.get(primary_key, 0)) - (0 if infield_key == primary_key else 12))
+	if primary_key == "1B":
+		player.position_ratings["DH"] = 70
+	if primary_key == "DH":
+		player.position_ratings["1B"] = 45
+
+
+func _get_primary_position_rating(player, position_key: String) -> int:
+	match position_key:
+		"C":
+			return clampi(int(player.ratings["catching"]) + 8, 35, 95)
+		"SS":
+			return clampi(int(player.ratings["fielding"]) + 8, 35, 95)
+		"2B", "3B":
+			return clampi(int(player.ratings["fielding"]) + 5, 35, 92)
+		"CF":
+			return clampi(int(player.ratings["fielding"]) + 4, 35, 92)
+		"LF", "RF":
+			return clampi(int(player.ratings["fielding"]) + 2, 30, 88)
+		"1B":
+			return clampi(int(player.ratings["fielding"]) - 2, 30, 85)
+		"DH":
+			return 75
+		_:
+			return clampi(int(player.ratings["fielding"]), 30, 90)
+
+
+func _assign_special_abilities(player) -> void:
+	var inferred_traits: Array[String] = []
+	if player.is_pitcher():
+		if int(player.ratings["velocity"]) >= 75:
+			inferred_traits.append("速球派")
+		if int(player.ratings["control"]) >= 72:
+			inferred_traits.append("制球重視")
+		if int(player.ratings["break"]) >= 74:
+			inferred_traits.append("変化球中心")
+		if int(player.ratings["k_rate"]) >= 76:
+			inferred_traits.append("奪三振")
+		if int(player.ratings["composure"]) >= 72:
+			inferred_traits.append("対ピンチ")
+		if str(player.role) == "starter" and int(player.ratings["stamina"]) >= 72:
+			inferred_traits.append("イニングイーター")
+		if str(player.role) == "closer" and int(player.ratings["composure"]) >= 70:
+			inferred_traits.append("守護神気質")
+		if int(player.ratings["vs_left"]) >= 72:
+			inferred_traits.append("対左打者○")
+	else:
+		if int(player.ratings["contact"]) >= 75:
+			inferred_traits.append("アベレージ型")
+		if int(player.ratings["power"]) >= 75:
+			inferred_traits.append("パワーヒッター")
+		if int(player.ratings["eye"]) >= 72:
+			inferred_traits.append("選球眼")
+		if int(player.ratings["speed"]) >= 76:
+			inferred_traits.append("走塁型")
+		if int(player.ratings["fielding"]) >= 76:
+			inferred_traits.append("守備職人")
+		if int(player.ratings["arm"]) >= 74:
+			inferred_traits.append("強肩")
+		if str(player.primary_position) == "C" and int(player.ratings["catching"]) >= 78:
+			inferred_traits.append("司令塔")
+		if int(player.ratings["vs_left"]) >= 72:
+			inferred_traits.append("対左投手○")
+		if str(player.primary_position) in ["CF", "SS", "2B"] and int(player.ratings["speed"]) >= 74:
+			inferred_traits.append("レンジ広い")
+		if str(player.primary_position) in ["1B", "LF", "RF", "DH"] and int(player.ratings["power"]) >= 70:
+			inferred_traits.append("長打期待")
+
+	for trait_name in inferred_traits:
+		if not player.traits.has(trait_name):
+			player.traits.append(trait_name)
 
 func _finalize_team_depth_chart(team, created_players: Array) -> void:
 	var starters: Array = []

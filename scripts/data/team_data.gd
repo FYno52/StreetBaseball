@@ -8,7 +8,7 @@ var short_name: String = ""
 var budget: int = 100000
 var fan_support: int = 50
 var strategy: String = "balanced"
-var sponsor_name: String = "街角商店街"
+var sponsor_name: String = "地域商店会"
 var sponsor_tier: int = 1
 var draft_focus_ids: Array[String] = []
 var last_draft_year: int = 0
@@ -49,11 +49,13 @@ var standings: Dictionary = {
 	"runs_against": 0
 }
 
+
 func win_pct() -> float:
 	var games: int = int(standings["wins"]) + int(standings["losses"])
 	if games <= 0:
 		return 0.0
 	return float(standings["wins"]) / float(games)
+
 
 func to_dict() -> Dictionary:
 	return {
@@ -79,6 +81,7 @@ func to_dict() -> Dictionary:
 		"standings": standings.duplicate(true)
 	}
 
+
 static func from_dict(d: Dictionary):
 	var t = load("res://scripts/data/team_data.gd").new()
 
@@ -88,7 +91,7 @@ static func from_dict(d: Dictionary):
 	t.budget = int(d.get("budget", 100000))
 	t.fan_support = int(d.get("fan_support", 50))
 	t.strategy = str(d.get("strategy", "balanced"))
-	t.sponsor_name = str(d.get("sponsor_name", "街角商店街"))
+	t.sponsor_name = str(d.get("sponsor_name", "地域商店会"))
 	t.sponsor_tier = int(d.get("sponsor_tier", 1))
 	t.last_draft_year = int(d.get("last_draft_year", 0))
 

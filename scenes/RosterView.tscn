@@ -45,6 +45,10 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = ""
 
+[node name="ManageButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2

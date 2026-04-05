@@ -7,14 +7,18 @@ const CALENDAR_SCENE_PATH := "res://scenes/CalendarScene.tscn"
 const ROSTER_VIEW_SCENE_PATH := "res://scenes/RosterView.tscn"
 const MATCH_SCENE_PATH := "res://scenes/MatchScene.tscn"
 const FRONT_OFFICE_SCENE_PATH := "res://scenes/FrontOffice.tscn"
+const RECORD_ROOM_SCENE_PATH := "res://scenes/RecordRoom.tscn"
+const OOTP_SHELL_SCRIPT = preload("res://scripts/ui/ootp_shell.gd")
 
 @onready var title_label: Label = $RootScroll/MarginContainer/RootVBox/TitleLabel
 @onready var nav_info_label: Label = $RootScroll/MarginContainer/RootVBox/NavInfoLabel
+@onready var nav_buttons_hbox: HBoxContainer = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox
 @onready var team_management_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/TeamManagementButton
 @onready var league_info_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/LeagueInfoButton
 @onready var calendar_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/CalendarButton
 @onready var roster_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/RosterButton
 @onready var front_office_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/FrontOfficeButton
+@onready var record_room_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/RecordRoomButton
 @onready var sim_day_button: Button = $RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox/SimDayButton
 @onready var sim_week_button: Button = $RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox/SimWeekButton
 @onready var sim_auto_button: Button = $RootScroll/MarginContainer/RootVBox/ProgressCard/ProgressButtonsHBox/SimAutoButton
@@ -43,9 +47,12 @@ const FRONT_OFFICE_SCENE_PATH := "res://scenes/FrontOffice.tscn"
 @onready var event_detail_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/EventDetailLabel
 @onready var note_title_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/NoteTitleLabel
 @onready var note_detail_label: Label = $RootScroll/MarginContainer/RootVBox/ContentColumns/RightContentVBox/NoteDetailLabel
+@onready var standings_tab_button: Button = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/LeftTabButtonsHBox/StandingsTabButton
+@onready var leaders_tab_button: Button = $RootScroll/MarginContainer/RootVBox/ContentColumns/LeftContentVBox/LeftTabButtonsHBox/LeadersTabButton
 
 var auto_progress_active: bool = false
 var milestone_progress_active: bool = false
+var current_left_tab: String = "standings"
 
 
 func _ready() -> void:
@@ -55,6 +62,17 @@ func _ready() -> void:
 		get_tree().call_deferred("change_scene_to_file", TEAM_SELECT_SCENE_PATH)
 		return
 
+	OOTP_SHELL_SCRIPT.install(self, {
+		"primary_tab": "home",
+		"section_label": "DASHBOARD",
+		"sub_tab": "dashboard",
+		"sub_tabs": [
+			{"key": "dashboard", "label": "DASHBOARD", "scene": "res://scenes/LeagueHome.tscn"},
+			{"key": "calendar", "label": "CALENDAR", "scene": CALENDAR_SCENE_PATH},
+			{"key": "records", "label": "RECORDS", "scene": RECORD_ROOM_SCENE_PATH}
+		],
+		"top_right": "HOME"
+	})
 	_setup_static_text()
 	_connect_buttons()
 	var pending_message: String = LeagueState.consume_pending_home_message()
@@ -68,11 +86,8 @@ func _exit_tree() -> void:
 
 
 func _connect_buttons() -> void:
-	team_management_button.pressed.connect(_on_team_management_button_pressed)
-	league_info_button.pressed.connect(_on_league_info_button_pressed)
-	calendar_button.pressed.connect(_on_calendar_button_pressed)
-	roster_button.pressed.connect(_on_roster_button_pressed)
-	front_office_button.pressed.connect(_on_front_office_button_pressed)
+	standings_tab_button.pressed.connect(_on_left_tab_pressed.bind("standings"))
+	leaders_tab_button.pressed.connect(_on_left_tab_pressed.bind("leaders"))
 	sim_day_button.pressed.connect(_on_sim_day_button_pressed)
 	sim_week_button.pressed.connect(_on_sim_week_button_pressed)
 	sim_auto_button.pressed.connect(_on_sim_auto_button_pressed)
@@ -85,11 +100,16 @@ func _connect_buttons() -> void:
 
 func _setup_static_text() -> void:
 	title_label.text = "ストリート野球"
+	title_label.visible = false
+	nav_buttons_hbox.visible = false
 	team_management_button.text = "チーム管理へ"
 	league_info_button.text = "リーグ情報へ"
 	calendar_button.text = "年間カレンダーへ"
 	roster_button.text = "選手一覧へ"
 	front_office_button.text = "球団運営へ"
+	record_room_button.text = "記録室へ"
+	standings_tab_button.text = "リーグ順位"
+	leaders_tab_button.text = "個人成績"
 	sim_day_button.text = "1日進める"
 	sim_week_button.text = "7日進める"
 	sim_auto_button.text = "オート進行"
@@ -113,18 +133,24 @@ func _refresh_view() -> void:
 	var controlled_name: String = "未設定"
 	if controlled_team != null:
 		controlled_name = controlled_team.name
+	var today_games: Array = LeagueState.get_games_for_day(LeagueState.current_day)
+	var yesterday_games: Array = []
+	if LeagueState.current_day > 1:
+		yesterday_games = LeagueState.get_games_for_day(LeagueState.current_day - 1)
+	var today_controlled_game: GameData = _find_controlled_game_in_list(today_games)
+	var latest_result_text: String = _get_latest_controlled_team_result_text()
 
 	nav_info_label.text = "日付: %s / 担当球団: %s" % [LeagueState.get_current_date_label(), controlled_name]
 
 	_refresh_season_status()
-	_refresh_focus_team_summary()
-	_refresh_today_summary()
-	_refresh_yesterday_summary()
+	_refresh_focus_team_summary(latest_result_text)
+	_refresh_today_summary(today_games, today_controlled_game)
+	_refresh_yesterday_summary(yesterday_games)
 	_refresh_home_digest()
 	_refresh_league_leaders()
 	_refresh_daily_events()
-	_refresh_note_summary()
-	_refresh_progress_buttons()
+	_refresh_note_summary(today_controlled_game)
+	_refresh_progress_buttons(today_controlled_game)
 
 
 func _refresh_season_status() -> void:
@@ -132,48 +158,25 @@ func _refresh_season_status() -> void:
 	var final_game_day: int = LeagueState.get_final_game_day()
 	var phase: String = LeagueState.get_season_phase()
 	var current_date_label: String = LeagueState.get_current_date_label()
-	var current_month: int = int(LeagueState.get_date_info_for_day(LeagueState.current_day).get("month", 1))
 	var active_sections: Array[String] = _get_active_front_office_sections()
+	var milestone: Dictionary = LeagueState.get_next_calendar_milestone()
 	var lines: Array[String] = []
-	lines.append("現在日付: %s" % current_date_label)
-	lines.append("%d月の運営カレンダー" % current_month)
-	lines.append("年度: %d年" % LeagueState.season_year)
+	lines.append("%d年" % LeagueState.season_year)
 	lines.append("状態: %s" % _get_phase_label(phase))
-	if first_game_day > 0:
+	lines.append("今日: %s" % LeagueState.get_calendar_summary_text())
+	if not milestone.is_empty():
+		lines.append("次の節目: %s" % str(milestone.get("label", "年越し")))
+	if phase == "preseason" and first_game_day > 0:
 		lines.append("開幕予定: %s" % LeagueState.get_date_label_for_day(first_game_day))
-	if final_game_day > 0:
+	elif phase == "regular" and final_game_day > 0:
 		lines.append("最終戦予定: %s" % LeagueState.get_date_label_for_day(final_game_day))
-	lines.append("")
-	lines.append("今日の年間イベント")
-	lines.append(LeagueState.get_calendar_summary_text())
-	var upcoming_events: Array[Dictionary] = LeagueState.get_upcoming_calendar_events(3)
-	if not upcoming_events.is_empty():
-		lines.append("")
-		lines.append("次に来るイベント")
-		for event_data in upcoming_events:
-			lines.append("- %s  %s" % [str(event_data.get("date_label", "")), str(event_data.get("label", ""))])
 	if not active_sections.is_empty():
-		lines.append("")
-		lines.append("今が使いどき")
-		lines.append("- " + " / ".join(active_sections))
-
-	var offseason_report: Array[String] = LeagueState.get_last_offseason_report()
-	if not offseason_report.is_empty() and LeagueState.current_day <= 14:
-		lines.append("")
-		lines.append("オフシーズン処理")
-		for line in offseason_report.slice(0, mini(3, offseason_report.size())):
-			lines.append("- %s" % str(line))
-
-	var roster_log: Array[String] = LeagueState.get_last_controlled_team_roster_log()
-	if not roster_log.is_empty() and LeagueState.current_day <= 14:
-		lines.append("")
-		for line in roster_log.slice(0, mini(4, roster_log.size())):
-			lines.append(str(line))
+		lines.append("今が使いどき: %s" % " / ".join(active_sections))
 
 	season_status_detail_label.text = "\n".join(lines)
 
 
-func _refresh_focus_team_summary() -> void:
+func _refresh_focus_team_summary(latest_result_text: String = "") -> void:
 	var team: TeamData = LeagueState.get_controlled_team()
 	if team == null:
 		focus_team_detail_label.text = "担当球団がまだ選ばれていません。"
@@ -196,60 +199,37 @@ func _refresh_focus_team_summary() -> void:
 	var lines: Array[String] = []
 	lines.append(team.name)
 	lines.append("戦績: %d勝 %d敗 %d分" % [int(team.standings["wins"]), int(team.standings["losses"]), int(team.standings["draws"])])
-	lines.append("得失点: %d / %d" % [int(team.standings["runs_for"]), int(team.standings["runs_against"])])
 	lines.append("人気: %d / 予算: %d" % [team.fan_support, team.budget])
-	lines.append("方針: %s" % _get_strategy_label(str(team.strategy)))
-	lines.append("予想先発: %s" % ace_name)
-	lines.append("打線の中心: %s" % core_batter_name)
+	lines.append("主力: %s / %s" % [ace_name, core_batter_name])
 
-	var finance_log: Array[String] = LeagueState.get_recent_finance_log()
-	if not finance_log.is_empty():
-		lines.append("")
-		lines.append("直近収支")
-		lines.append(finance_log[0])
-
-	var latest_result_text: String = _get_latest_controlled_team_result_text()
 	if latest_result_text != "":
-		lines.append("")
-		lines.append("直近の試合")
-		lines.append(latest_result_text)
+		lines.append("直近結果: %s" % latest_result_text)
 
 	focus_team_detail_label.text = "\n".join(lines)
 
 
-func _refresh_today_summary() -> void:
-	var today_games: Array = LeagueState.get_games_for_day(LeagueState.current_day)
+func _refresh_today_summary(today_games: Array = [], controlled_game: GameData = null) -> void:
 	var calendar_summary: String = LeagueState.get_calendar_summary_text()
 	var direct_hint: String = _get_home_direct_hint()
 	if today_games.is_empty():
-		var no_game_lines: Array[String] = [calendar_summary, "", "今日は試合予定がありません。", "休養日または移動日として進行します。"]
+		var no_game_lines: Array[String] = ["今日は試合なし", calendar_summary]
 		if direct_hint != "":
-			no_game_lines.append("")
-			no_game_lines.append(direct_hint)
+			no_game_lines.append("導線: %s" % direct_hint)
 		today_detail_label.text = "\n".join(no_game_lines)
 		return
 
 	var lines: Array[String] = []
-	var controlled_game: GameData = _get_today_controlled_team_game()
 	if controlled_game != null:
-		lines.append("担当球団カード")
-		lines.append(_format_game_card(controlled_game))
-		lines.append("")
-
-	lines.append("%d試合予定" % today_games.size())
-	for game_value in today_games.slice(0, mini(4, today_games.size())):
-		var game: GameData = game_value
-		lines.append("- %s" % _format_game_card(game))
-
-	lines.append("")
+		lines.append("担当球団: %s" % _format_game_card(controlled_game))
+	else:
+		lines.append("本日 %d試合" % today_games.size())
 	lines.append(calendar_summary)
 	if direct_hint != "":
-		lines.append("")
-		lines.append(direct_hint)
+		lines.append("導線: %s" % direct_hint)
 	today_detail_label.text = "\n".join(lines)
 
 
-func _refresh_yesterday_summary() -> void:
+func _refresh_yesterday_summary(yesterday_games: Array = []) -> void:
 	var target_day: int = LeagueState.current_day - 1
 	if target_day < 1:
 		yesterday_detail_label.text = "まだ試合結果はありません。"
@@ -257,7 +237,7 @@ func _refresh_yesterday_summary() -> void:
 
 	var results: Array[String] = []
 	var controlled_lines: Array[String] = []
-	for game_value in LeagueState.get_games_for_day(target_day):
+	for game_value in yesterday_games:
 		var game: GameData = game_value
 		if not bool(game.played):
 			continue
@@ -274,10 +254,9 @@ func _refresh_yesterday_summary() -> void:
 	var lines: Array[String] = []
 	if not controlled_lines.is_empty():
 		lines.append_array(controlled_lines)
-		lines.append("")
-	lines.append("%s の結果" % LeagueState.get_date_label_for_day(target_day))
-	for line in results.slice(0, mini(4, results.size())):
-		lines.append("- %s" % line)
+	else:
+		lines.append("%s" % LeagueState.get_date_label_for_day(target_day))
+		lines.append(results[0])
 
 	yesterday_detail_label.text = "\n".join(lines)
 
@@ -297,38 +276,81 @@ func _refresh_home_digest() -> void:
 	if standings.is_empty():
 		digest_detail_label.text = "リーグ情報がまだありません。"
 		return
-	var leader: TeamData = standings[0]
-	var history_summary: Dictionary = LeagueState.get_controlled_team_history_summary()
 	var lines: Array[String] = []
-	lines.append("首位: %s (%d勝 %d敗)" % [leader.name, int(leader.standings["wins"]), int(leader.standings["losses"])])
-	lines.append("現在日: %s" % LeagueState.get_current_date_label())
-	if history_summary.get("seasons", 0) > 0:
-		lines.append("")
-		lines.append("担当球団通算")
-		lines.append("%d年 / %d勝 %d敗 %d分" % [int(history_summary.get("seasons", 0)), int(history_summary.get("wins", 0)), int(history_summary.get("losses", 0)), int(history_summary.get("draws", 0))])
-		lines.append("優勝 %d回 / 最高順位 %d位" % [int(history_summary.get("championships", 0)), int(history_summary.get("best_rank", 0))])
+	for i in range(mini(6, standings.size())):
+		var team: TeamData = standings[i]
+		var mark: String = "*" if str(team.id) == LeagueState.controlled_team_id else ""
+		lines.append("%d. %s%s  %d勝 %d敗 %d分" % [
+			i + 1,
+			team.name,
+			mark,
+			int(team.standings["wins"]),
+			int(team.standings["losses"]),
+			int(team.standings["draws"])
+		])
 	digest_detail_label.text = "\n".join(lines)
 
 
+func _find_team_by_runs_for(highest: bool) -> TeamData:
+	var best_team: TeamData = null
+	for team_id in LeagueState.all_team_ids():
+		var team: TeamData = LeagueState.get_team(team_id)
+		if team == null:
+			continue
+		if best_team == null:
+			best_team = team
+			continue
+		var team_runs: int = int(team.standings["runs_for"])
+		var best_runs: int = int(best_team.standings["runs_for"])
+		if highest and team_runs > best_runs:
+			best_team = team
+		elif not highest and team_runs < best_runs:
+			best_team = team
+	return best_team
+
+
 func _refresh_league_leaders() -> void:
+	standings_tab_button.toggle_mode = true
+	leaders_tab_button.toggle_mode = true
+	standings_tab_button.button_pressed = current_left_tab == "standings"
+	leaders_tab_button.button_pressed = current_left_tab == "leaders"
+	var show_standings: bool = current_left_tab == "standings"
+	digest_title_label.visible = true
+	digest_detail_label.visible = show_standings
+	leaders_title_label.visible = not show_standings
+	batting_leaders_label.visible = not show_standings
+	pitching_leaders_label.visible = not show_standings
+	digest_title_label.text = "リーグ順位" if show_standings else ""
+	leaders_title_label.text = "個人成績"
+	if show_standings:
+		return
 	var batting: Dictionary = LeagueState.get_league_batting_leaders(3)
 	var pitching: Dictionary = LeagueState.get_league_pitching_leaders(3)
 	var batting_lines: Array[String] = ["打者部門"]
-	for player in batting.get("avg", []):
-		batting_lines.append("打率 %s %.3f" % [player.full_name, player.get_batting_average()])
-	for player in batting.get("hr", []):
-		batting_lines.append("本塁打 %s %d" % [player.full_name, int(player.batting_stats["hr"])])
-	for player in batting.get("rbi", []):
-		batting_lines.append("打点 %s %d" % [player.full_name, int(player.batting_stats["rbi"])])
+	var avg_players: Array = batting.get("avg", [])
+	var hr_players: Array = batting.get("hr", [])
+	if not avg_players.is_empty():
+		batting_lines.append("打率: %s %.3f" % [avg_players[0].full_name, avg_players[0].get_batting_average()])
+	if not hr_players.is_empty():
+		batting_lines.append("本塁打: %s %d" % [hr_players[0].full_name, int(hr_players[0].batting_stats["hr"])])
 	var pitching_lines: Array[String] = ["投手部門"]
-	for player in pitching.get("wins", []):
-		pitching_lines.append("勝利 %s %d" % [player.full_name, int(player.pitching_stats["wins"])])
-	for player in pitching.get("saves", []):
-		pitching_lines.append("セーブ %s %d" % [player.full_name, int(player.pitching_stats["saves"])])
-	for player in pitching.get("era", []):
-		pitching_lines.append("防御率 %s %.2f" % [player.full_name, player.get_era()])
+	var win_players: Array = pitching.get("wins", [])
+	var save_players: Array = pitching.get("saves", [])
+	var era_players: Array = pitching.get("era", [])
+	if not win_players.is_empty():
+		pitching_lines.append("勝利: %s %d" % [win_players[0].full_name, int(win_players[0].pitching_stats["wins"])])
+	if not save_players.is_empty():
+		pitching_lines.append("セーブ: %s %d" % [save_players[0].full_name, int(save_players[0].pitching_stats["saves"])])
+	if not era_players.is_empty():
+		pitching_lines.append("防御率: %s %.2f" % [era_players[0].full_name, era_players[0].get_era()])
 	batting_leaders_label.text = "\n".join(batting_lines)
 	pitching_leaders_label.text = "\n".join(pitching_lines)
+
+
+func _on_left_tab_pressed(tab_key: String) -> void:
+	current_left_tab = tab_key
+	_refresh_home_digest()
+	_refresh_league_leaders()
 
 
 func _refresh_daily_events() -> void:
@@ -336,18 +358,16 @@ func _refresh_daily_events() -> void:
 	if events.is_empty():
 		event_detail_label.text = "今日は大きなニュースはありません。"
 		return
-	event_detail_label.text = "\n".join(events.slice(0, mini(6, events.size())))
+	event_detail_label.text = "\n".join(events.slice(0, mini(3, events.size())))
 
 
-func _refresh_note_summary() -> void:
+func _refresh_note_summary(today_game: GameData = null) -> void:
 	var lines: Array[String] = []
-	var today_game: GameData = _get_today_controlled_team_game()
 	var phase: String = LeagueState.get_season_phase()
 	var direct_hint: String = _get_home_direct_hint()
 	lines.append("状態: %s" % _get_phase_label(phase))
 	if today_game != null and not bool(today_game.played):
 		lines.append("今日は担当球団の試合があります。")
-		lines.append("自動進行でも消化できます。観たい時は「今日の試合へ」を使えます。")
 		if LeagueState.is_active_live_game(str(today_game.id)):
 			lines.append("この試合はライブ進行中です。試合確定まで再入場できません。")
 	elif today_game != null and bool(today_game.played):
@@ -355,30 +375,14 @@ func _refresh_note_summary() -> void:
 	else:
 		lines.append("今日は担当球団の試合はありません。")
 
-	var latest_result_text: String = _get_latest_controlled_team_result_text()
-	if latest_result_text != "":
-		lines.append("")
-		lines.append("直近の担当球団結果")
-		lines.append(latest_result_text)
-
 	if direct_hint != "":
-		lines.append("")
-		lines.append("おすすめ導線")
-		lines.append(direct_hint)
-
-	var latest_integrity_notes: Array[String] = LeagueState.latest_integrity_notes
-	if not latest_integrity_notes.is_empty():
-		lines.append("")
-		lines.append("内部メモ")
-		for line in latest_integrity_notes.slice(0, mini(3, latest_integrity_notes.size())):
-			lines.append("- %s" % str(line))
+		lines.append("おすすめ導線: %s" % direct_hint)
 	note_detail_label.text = "\n".join(lines)
 
 
-func _refresh_progress_buttons() -> void:
+func _refresh_progress_buttons(today_game: GameData = null) -> void:
 	var has_calendar_days: bool = LeagueState.current_day <= LeagueState.get_last_day()
 	var phase: String = LeagueState.get_season_phase()
-	var today_game: GameData = _get_today_controlled_team_game()
 	var live_locked: bool = today_game != null and LeagueState.is_active_live_game(str(today_game.id))
 	var can_open_live: bool = phase == "regular" and today_game != null and not bool(today_game.played) and not live_locked
 	var progress_locked: bool = auto_progress_active or milestone_progress_active
@@ -560,6 +564,11 @@ func _on_front_office_button_pressed() -> void:
 	get_tree().change_scene_to_file(FRONT_OFFICE_SCENE_PATH)
 
 
+func _on_record_room_button_pressed() -> void:
+	auto_progress_active = false
+	get_tree().change_scene_to_file(RECORD_ROOM_SCENE_PATH)
+
+
 func _on_save_button_pressed() -> void:
 	if LeagueState.save_to_file():
 		progress_status_label.text = "セーブしました: user://save_01.json"
@@ -583,6 +592,16 @@ func _get_today_controlled_team_game() -> GameData:
 	if LeagueState.controlled_team_id == "":
 		return null
 	for game_value in LeagueState.get_games_for_day(LeagueState.current_day):
+		var game: GameData = game_value
+		if str(game.away_team_id) == LeagueState.controlled_team_id or str(game.home_team_id) == LeagueState.controlled_team_id:
+			return game
+	return null
+
+
+func _find_controlled_game_in_list(games: Array) -> GameData:
+	if LeagueState.controlled_team_id == "":
+		return null
+	for game_value in games:
 		var game: GameData = game_value
 		if str(game.away_team_id) == LeagueState.controlled_team_id or str(game.home_team_id) == LeagueState.controlled_team_id:
 			return game

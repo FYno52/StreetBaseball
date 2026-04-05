@@ -1,6 +1,7 @@
-﻿extends Control
+extends Control
 
-const FRONT_OFFICE_SCENE_PATH := "res://scenes/FrontOffice.tscn"
+const CONTRACT_OFFICE_SCENE_PATH := "res://scenes/ContractOffice.tscn"
+const OOTP_SHELL_SCRIPT = preload("res://scripts/ui/ootp_shell.gd")
 
 @onready var title_label: Label = $RootScroll/MarginContainer/RootVBox/TitleLabel
 @onready var back_button: Button = $RootScroll/MarginContainer/RootVBox/NavButtonsHBox/BackButton
@@ -17,36 +18,52 @@ const FRONT_OFFICE_SCENE_PATH := "res://scenes/FrontOffice.tscn"
 
 var _action_player_ids: Array[String] = ["", "", ""]
 
+
 func _ready() -> void:
+	OOTP_SHELL_SCRIPT.install(self, {
+		"primary_tab": "front_office",
+		"section_label": "FA MARKET",
+		"sub_tab": "fa",
+		"sub_tabs": [
+			{"key": "overview", "label": "OVERVIEW", "scene": CONTRACT_OFFICE_SCENE_PATH},
+			{"key": "renewals", "label": "RENEWALS", "scene": "res://scenes/ContractRenewalOffice.tscn"},
+			{"key": "fa", "label": "FA MARKET", "scene": "res://scenes/FAMarket.tscn"}
+		],
+		"top_right": "FA MARKET"
+	})
 	_setup_static_text()
-	back_button.pressed.connect(_on_back_button_pressed)
-	action_button_1.pressed.connect(func() -> void: _negotiate_from_slot(0))
-	action_button_2.pressed.connect(func() -> void: _negotiate_from_slot(1))
-	action_button_3.pressed.connect(func() -> void: _negotiate_from_slot(2))
+	_connect_buttons()
 	_refresh_view()
 
+
 func _setup_static_text() -> void:
-	title_label.text = "FA候補一覧"
-	back_button.text = "球団運営へ戻る"
+	title_label.visible = false
+	back_button.text = "契約・FAへ戻る"
 	summary_title_label.text = "市場サマリー"
-	list_title_label.text = "候補選手"
+	list_title_label.text = "交渉候補"
 	note_title_label.text = "メモ"
 	action_button_1.text = "候補1と交渉"
 	action_button_2.text = "候補2と交渉"
 	action_button_3.text = "候補3と交渉"
 	note_detail_label.text = "FA期間中は上位候補3人まで簡易交渉できます。今は即加入の簡易版で、後から競合や条件交渉へ広げる予定です。"
 
+
+func _connect_buttons() -> void:
+	back_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(CONTRACT_OFFICE_SCENE_PATH))
+	action_button_1.pressed.connect(func() -> void: _negotiate_from_slot(0))
+	action_button_2.pressed.connect(func() -> void: _negotiate_from_slot(1))
+	action_button_3.pressed.connect(func() -> void: _negotiate_from_slot(2))
+
+
 func _refresh_view() -> void:
 	var controlled_team: TeamData = LeagueState.get_controlled_team()
 	if controlled_team == null:
-		info_label.text = "担当球団が未設定です。"
+		info_label.text = "担当球団が設定されていません。"
 		summary_detail_label.text = "-"
 		list_detail_label.text = "-"
 		return
 
-	info_label.text = "%s から見た、契約切れ間近やFA志向が高い選手の一覧です。" % controlled_team.name
 	var candidates: Array[Dictionary] = LeagueState.get_fa_candidate_list()
-	_action_player_ids = ["", "", ""]
 	var controlled_count: int = 0
 	var other_count: int = 0
 	for item in candidates:
@@ -54,10 +71,13 @@ func _refresh_view() -> void:
 			controlled_count += 1
 		else:
 			other_count += 1
-	summary_detail_label.text = "候補総数: %d\n自球団候補: %d\n他球団候補: %d" % [
+
+	info_label.text = "%s から見た FA 市場です。まずは上位候補を確認して、必要ならすぐ交渉できます。" % controlled_team.name
+	summary_detail_label.text = "候補総数 %d\n自球団候補 %d / 他球団候補 %d\n今日のイベント: %s" % [
 		candidates.size(),
 		controlled_count,
-		other_count
+		other_count,
+		LeagueState.get_calendar_summary_text()
 	]
 
 	if candidates.is_empty():
@@ -66,10 +86,10 @@ func _refresh_view() -> void:
 		return
 
 	var lines: Array[String] = []
-	for i in range(mini(12, candidates.size())):
+	for i in range(mini(8, candidates.size())):
 		var item: Dictionary = candidates[i]
 		var tag: String = "自球団" if bool(item.get("is_controlled_team", false)) else "他球団"
-		lines.append("%d. [%s] %s / %s / %s / 総合%d / %d歳 / 残り%d年 / 希望年俸%d / FA志向%d" % [
+		lines.append("%d. [%s] %s / %s / %s / 総合%d / %d歳 / 残り%d年 / 希望年俸 %d / FA志向 %d" % [
 			i + 1,
 			tag,
 			str(item.get("player_name", "")),
@@ -84,8 +104,10 @@ func _refresh_view() -> void:
 	list_detail_label.text = "\n".join(lines)
 	_set_action_buttons(candidates, LeagueState.is_fa_period())
 
+
 func _set_action_buttons(candidates: Array[Dictionary], enabled_for_period: bool) -> void:
 	var buttons: Array[Button] = [action_button_1, action_button_2, action_button_3]
+	_action_player_ids = ["", "", ""]
 	for i in range(buttons.size()):
 		var button: Button = buttons[i]
 		if i < candidates.size():
@@ -99,6 +121,7 @@ func _set_action_buttons(candidates: Array[Dictionary], enabled_for_period: bool
 			button.visible = false
 			button.disabled = true
 
+
 func _get_role_label(role: String, position: String) -> String:
 	match role:
 		"starter":
@@ -110,8 +133,6 @@ func _get_role_label(role: String, position: String) -> String:
 		_:
 			return position
 
-func _on_back_button_pressed() -> void:
-	get_tree().change_scene_to_file(FRONT_OFFICE_SCENE_PATH)
 
 func _negotiate_from_slot(slot_index: int) -> void:
 	if slot_index < 0 or slot_index >= _action_player_ids.size():

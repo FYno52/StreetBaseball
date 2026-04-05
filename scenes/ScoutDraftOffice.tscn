@@ -39,66 +39,123 @@ text = ""
 
 [node name="NavButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="BackButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/NavButtonsHBox"]
 layout_mode = 2
 text = ""
 
+[node name="TabButtonsHBox" type="HBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OverviewTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="ProspectsTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
+layout_mode = 2
+text = ""
+
+[node name="DraftTabButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/TabButtonsHBox"]
+layout_mode = 2
+text = ""
+
 [node name="InfoLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="OverviewVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SummaryTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox"]
+layout_mode = 2
+text = ""
+
+[node name="SummaryLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="NoteTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox"]
+layout_mode = 2
+text = ""
+
+[node name="NoteLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/OverviewVBox"]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
 autowrap_mode = 3
 
-[node name="SummaryLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 84)
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="ProspectsTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-layout_mode = 2
-text = ""
-
-[node name="ProspectsDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 180)
-layout_mode = 2
-size_flags_horizontal = 3
-text = ""
-autowrap_mode = 3
-
-[node name="ProspectButtonsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="ProspectsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Prospect1Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectButtonsVBox"]
+[node name="ProspectsTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ProspectsVBox"]
 layout_mode = 2
 text = ""
 
-[node name="Prospect2Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectButtonsVBox"]
+[node name="ProspectsDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/ProspectsVBox"]
+custom_minimum_size = Vector2(0, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="ProspectButtonsVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox/ProspectsVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Prospect1Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectsVBox/ProspectButtonsVBox"]
 layout_mode = 2
 text = ""
 
-[node name="Prospect3Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectButtonsVBox"]
+[node name="Prospect2Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectsVBox/ProspectButtonsVBox"]
 layout_mode = 2
 text = ""
 
-[node name="Prospect4Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectButtonsVBox"]
+[node name="Prospect3Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectsVBox/ProspectButtonsVBox"]
 layout_mode = 2
 text = ""
 
-[node name="Prospect5Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectButtonsVBox"]
+[node name="Prospect4Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectsVBox/ProspectButtonsVBox"]
 layout_mode = 2
 text = ""
 
-[node name="DraftButton" type="Button" parent="RootScroll/MarginContainer/RootVBox"]
+[node name="Prospect5Button" type="Button" parent="RootScroll/MarginContainer/RootVBox/ProspectsVBox/ProspectButtonsVBox"]
 layout_mode = 2
 text = ""
 
-[node name="NoteLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox"]
-custom_minimum_size = Vector2(0, 72)
+[node name="DraftVBox" type="VBoxContainer" parent="RootScroll/MarginContainer/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DraftTitleLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/DraftVBox"]
+layout_mode = 2
+text = ""
+
+[node name="DraftDetailLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/DraftVBox"]
+custom_minimum_size = Vector2(0, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+autowrap_mode = 3
+
+[node name="DraftButton" type="Button" parent="RootScroll/MarginContainer/RootVBox/DraftVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 44)
+text = ""
+
+[node name="DraftNoteLabel" type="Label" parent="RootScroll/MarginContainer/RootVBox/DraftVBox"]
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 text = ""
